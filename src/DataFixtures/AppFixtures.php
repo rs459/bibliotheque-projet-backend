@@ -7,86 +7,58 @@ use Doctrine\Persistence\ObjectManager;
 use App\Entity\Author;
 use App\Entity\Book;
 use App\Entity\Editor;
+use Faker\Factory;
 
 class AppFixtures extends Fixture
 {
     public function load(ObjectManager $manager): void
     {
-        $author1 = new Author();
-        $author1->setFirstName('Antoine');
-        $author1->setLastName('de Saint Exupéry');
-        $author1->setCountry('France');
-        $manager->persist($author1);
-        $author2 = new Author();
-        $author2->setFirstName('George');
-        $author2->setLastName('Orwell');
-        $author2->setCountry('Royaume-Uni');
-        $manager->persist($author2);
-        $author3 = new Author();
-        $author3->setFirstName('Joanne');
-        $author3->setLastName('Rowling');
-        $author3->setCountry('Royaume-Uni');
-        $manager->persist($author3);
+        // On utilise Faker pour générer des données réalistes
+        $faker = Factory::create('fr_FR');
+
+        // Création de 5 auteurs et de références pour les utiliser après
+        $authors = [];
+        for ($i = 0; $i < 5; $i++) {
+            $author = new Author();
+            $author->setFirstName($faker->firstName());
+            $author->setLastName($faker->lastName());
+            $author->setCountry($faker->country());
+            $manager->persist($author);
+            $authors[] = $author;
+        }
+
+        // Création de 5 éditeurs
+        $editors = [];
+        for ($i = 0; $i < 5; $i++) {
+            $editor = new Editor();
+            $editor->setName($faker->company());
+            $editor->setHeadquarter($faker->city());
+            $editor->setCreationDate($faker->dateTimeBetween('-50 years', 'now'));
+            $manager->persist($editor);
+            $editors[] = $editor;
+        }
 
         $manager->flush();
 
-        $editor1 = new Editor();
-        $editor1->setName('Gallimard');
-        $editor1->setHeadquarter('France');
-        $editor1->setCreationDate(new \DateTime('1946-01-01'));
-        $manager->persist($editor1);
-        $editor2 = new Editor();
-        $editor2->setName('Seuil');
-        $editor2->setHeadquarter('France');
-        $editor2->setCreationDate(new \DateTime('1935-01-01'));
-        $manager->persist($editor2);
-        $editor3 = new Editor();
-        $editor3->setName('Bloomsbury');
-        $editor3->setHeadquarter('Royaume-Uni');
-        $editor3->setCreationDate(new \DateTime('1997-01-01'));
-        $manager->persist($editor3);
+        // Création de 100 livres
+        for ($i = 0; $i < 100; $i++) {
+            $book = new Book();
+            $bookTitle = $faker->sentence(3);
 
-        $manager->flush();
+            $book->setTitle($bookTitle);
+            $book->setDescription($faker->paragraph(3));
+            $book->setPages($faker->numberBetween(50, 800));
 
-        // Création des livres
-        $book1 = new Book();
-        $book1->setTitle('Le Petit Prince');
-        $book1->setDescription('L\'histoire d\'un petit prince
-qui voyage de planète en planète.');
-        $book1->setPages(96);
-        $book1->setImage('https://encryptedtbn0.
-gstatic.com/images?q=tbn:ANd9GcSfLtRjalUT26tXdZ3RHH8VRMzD
-0S0pT-tFDg&s');
-        $book1->setAuthor($author1);
-        $book1->setEditor($editor1);
+            // On gère la balise alt en créant une chaine de caractère valide
+            $altText = urlencode(trim($bookTitle));
+            $book->setImage('https://placehold.co/300x550?text=' . $altText);
 
-        $manager->persist($book1);
+            // On sélectionne un auteur et un éditeur au hasard
+            $book->setAuthor($faker->randomElement($authors));
+            $book->setEditor($faker->randomElement($editors));
 
-        $book2 = new Book();
-        $book2->setTitle('1984');
-        $book2->setDescription('Un roman dystopique sur la
-surveillance de masse.');
-        $book2->setPages(368);
-        $book2->setImage('https://encryptedtbn0.
-gstatic.com/images?q=tbn:ANd9GcSfLtRjalUT26tXdZ3RHH8VRMzD
-0S0pT-tFDg&s');
-        $book2->setAuthor($author2);
-        $book2->setEditor($editor2);
-
-        $manager->persist($book2);
-
-        $book3 = new Book();
-        $book3->setTitle('Harry Potter à l\'école des
-sorciers');
-        $book3->setDescription('Le début des aventures du
-célèbre sorcier.');
-        $book3->setPages(320);
-        $book3->setImage('https://encryptedtbn0.
-gstatic.com/images?q=tbn:ANd9GcSfLtRjalUT26tXdZ3RHH8VRMzD
-0S0pT-tFDg&s');
-        $book3->setAuthor($author3);
-        $book3->setEditor($editor3);
-        $manager->persist($book3);
+            $manager->persist($book);
+        }
 
         $manager->flush();
     }
