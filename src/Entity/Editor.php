@@ -13,6 +13,7 @@ use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\Put;
 use ApiPlatform\Metadata\Delete;
+use Symfony\Component\Serializer\Annotation\Groups;
 
 #[ORM\Entity(repositoryClass: EditorRepository::class)]
 #[ApiResource(
@@ -29,21 +30,25 @@ class Editor
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['editor:read'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
+    #[Groups(['editor:read'])]
     private ?string $name = null;
 
     #[ORM\Column(type: Types::DATE_MUTABLE)]
+    #[Groups(['editor:read'])]
     private ?\DateTime $creationDate = null;
 
     #[ORM\Column(length: 255)]
+    #[Groups(['editor:read'])]
     private ?string $headquarter = null;
 
     /**
      * @var Collection<int, Book>
      */
-    #[ORM\OneToMany(targetEntity: Book::class, mappedBy: 'Editor', orphanRemoval: true)]
+    #[ORM\OneToMany(targetEntity: Book::class, mappedBy: 'editor', orphanRemoval: true)]
     private Collection $books;
 
     public function __construct()
