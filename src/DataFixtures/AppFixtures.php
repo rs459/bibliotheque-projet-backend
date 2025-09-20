@@ -43,15 +43,13 @@ class AppFixtures extends Fixture
         // Création de 100 livres
         for ($i = 0; $i < 100; $i++) {
             $book = new Book();
-            $bookTitle = $faker->sentence(3);
+            $bookTitle = $faker->words(3, true);
 
             $book->setTitle($bookTitle);
             $book->setDescription($faker->paragraph(3));
             $book->setPages($faker->numberBetween(50, 800));
 
-            // On gère la balise alt en créant une chaine de caractère valide
-            $altText = urlencode(trim($bookTitle));
-            $book->setImage('https://placehold.co/300x550?text=' . $altText);
+            $book->setImage('https://picsum.photos/75/100?random=' . ($i + 1));
 
             // On sélectionne un auteur et un éditeur au hasard
             $book->setAuthor($faker->randomElement($authors));
