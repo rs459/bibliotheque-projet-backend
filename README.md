@@ -81,10 +81,18 @@ php bin/console doctrine:fixtures:load
 
 ## Lancer le serveur de développement
 
-Vous pouvez maintenant lancer le serveur web local de Symfony :
+**Le serveur Symfony refuse de servir sur une interface locale, il faut utiliser PHP pour ce faire, (nécessaire pour expo par exemple), pour un developpement local préférez la commande symfony:**
+
+```bash
+php -S Votre_ip_locale:port -t public
+```
+
+Vous pouvez maintenant lancer le serveur web local de Symfony
 
 ```bash
 symfony server:start
 ```
+
+
 
 Votre API sera accessible à l'adresse indiquée dans le terminal (généralement `https://127.0.0.1:8000`).
