@@ -19,8 +19,6 @@ final class Version20251007162246 extends AbstractMigration
 
     public function up(Schema $schema): void
     {
-        // this up() migration is auto-generated, please modify it to your needs
-        $this->addSql('DROP INDEX UNIQ_IDENTIFIER_EMAIL ON user');
     }
 
     public function down(Schema $schema): void
