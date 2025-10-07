@@ -1,6 +1,5 @@
 name: Déploiement de l'API Symfony sur O2Switch (branche deploy)
 
-# Se déclenche à chaque push sur la branche 'deploy'
 on:
     push:
         branches: [deploy]
@@ -10,27 +9,24 @@ jobs:
         runs-on: ubuntu-latest
 
         steps:
-            # --- 1. PRÉPARATION DE L'APPLICATION ---
             - name: Récupération du code
               uses: actions/checkout@v4
 
             - name: Configuration de PHP
               uses: shivammathur/setup-php@v2
               with:
-                  php-version: "8.3"
+                  php-version: "8.2"
                   extensions: pdo, pdo_mysql
                   tools: composer
+
+            - name: Installation des dépendances Composer
+              run: composer install --no-dev --optimize-autoloader --no-interaction
 
             - name: Création du fichier .env.local pour la production
               run: |
                   echo "DATABASE_URL='${{ secrets.DATABASE_URL }}'" > .env.local
                   echo "APP_SECRET='${{ secrets.APP_SECRET }}'" >> .env.local
-                  echo "APP_ENV=prod" >> .env.local
 
-            - name: Installation des dépendances Composer
-              run: composer install --no-dev --optimize-autoloader --no-interaction
-
-            # --- 2. GESTION DU PARE-FEU O2SWITCH ---
             - name: Récupérer l'IP publique du runner
               id: ip
               uses: haythem/public-ip@v1.3
@@ -40,7 +36,6 @@ jobs:
                   curl -s -H 'Authorization: cpanel ${{ secrets.CPANEL_USERNAME }}:${{ secrets.CPANEL_API_TOKEN }}' \
                   'https://${{ secrets.CPANEL_SERVER }}:2083/execute/SshWhitelist/add?address=${{ steps.ip.outputs.ipv4 }}&port=22'
 
-            # --- 3. DÉPLOIEMENT ET FINALISATION ---
             - name: Déployer les fichiers de l'application sur le serveur
               uses: appleboy/scp-action@master
               with:
@@ -62,9 +57,8 @@ jobs:
                       chmod +x deploy.sh
                       ./deploy.sh
 
-            # --- 4. NETTOYAGE (SÉCURITÉ) ---
             - name: Retirer l'IP du runner du pare-feu
-              if: always()
+              if: always() && steps.ip.outcome == 'success' # <-- CORRECTION FINALE ICI
               run: |
                   curl -s -H 'Authorization: cpanel ${{ secrets.CPANEL_USERNAME }}:${{ secrets.CPANEL_API_TOKEN }}' \
                   'https://${{ secrets.CPANEL_SERVER }}:2083/execute/SshWhitelist/remove?address=${{ steps.ip.outputs.ipv4 }}&port=22'
