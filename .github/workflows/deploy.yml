@@ -28,6 +28,7 @@ jobs:
               run: |
                   echo "DATABASE_URL='${{ secrets.DATABASE_URL }}'" > .env.local
                   echo "APP_SECRET='${{ secrets.APP_SECRET }}'" >> .env.local
+                  echo "APP_ENV=prod" >> .env.local
 
             # --- 2. GESTION DU PARE-FEU O2SWITCH ---
             - name: Récupérer l'IP publique du runner
