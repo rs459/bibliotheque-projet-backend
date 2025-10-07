@@ -31,6 +31,7 @@
         "symfony/serializer": "7.3.*",
         "symfony/twig-bundle": "7.3.*",
         "symfony/validator": "7.3.*",
+        "doctrine/doctrine-fixtures-bundle": "^4.1",
         "symfony/yaml": "7.3.*"
     },
     "config": {
@@ -85,7 +86,6 @@
         }
     },
     "require-dev": {
-        "doctrine/doctrine-fixtures-bundle": "^4.1",
         "fakerphp/faker": "^1.24",
         "symfony/maker-bundle": "^1.64"
     }
