@@ -22,6 +22,8 @@ jobs:
                   tools: composer
 
             - name: Installation des dépendances Composer
+              env:
+                  APP_ENV: prod
               run: composer install --no-dev --optimize-autoloader --no-interaction
 
             - name: Création du fichier .env.local pour la production
