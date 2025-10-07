@@ -57,6 +57,13 @@ jobs:
                       cd ${{ secrets.TARGET_DIR }}
                       chmod +x deploy.sh
                       ./deploy.sh
+            - name: DEBUG - Lister les IPs autorisées
+              if: always()
+              run: |
+                  echo "--- IPs actuellement dans la liste blanche ---"
+                  curl -s -H 'Authorization: cpanel ${{ secrets.CPANEL_USERNAME }}:${{ secrets.CPANEL_API_TOKEN }}' \
+                  'https://${{ secrets.CPANEL_SERVER }}:2083/execute/SshWhitelist/list'
+                  echo "--------------------------------------------"
 
             - name: Retirer l'IP du runner du pare-feu
               if: always() && steps.ip.outcome == 'success' # <-- L'ajout crucial
