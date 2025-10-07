@@ -59,6 +59,7 @@ jobs:
                   key: ${{ secrets.SSH_PRIVATE_KEY }}
                   script: |
                       cd ${{ secrets.TARGET_DIR }}
+                      chmod +x deploy.sh
                       ./deploy.sh
 
             # --- 4. NETTOYAGE (SÉCURITÉ) ---
