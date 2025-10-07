@@ -9,9 +9,23 @@ jobs:
         runs-on: ubuntu-latest
 
         steps:
+            # --- 1. CONFIGURATION ET RÉCUPÉRATION DE L'IP ---
             - name: Récupération du code
               uses: actions/checkout@v4
 
+            - name: Récupérer l'IP publique via l'API cPanel (Source de vérité)
+              id: get_ip
+              run: |
+                  IP=$(curl -s -H 'Authorization: cpanel ${{ secrets.CPANEL_USERNAME }}:${{ secrets.CPANEL_API_TOKEN }}' \
+                  'https://${{ secrets.CPANEL_SERVER }}:2083/execute/SshWhitelist/list' | jq -r .data.ip)
+                  echo "IP_ADDRESS=$IP" >> $GITHUB_OUTPUT
+
+            - name: Autoriser l'IP du runner dans le pare-feu SSH
+              run: |
+                  curl -s -H 'Authorization: cpanel ${{ secrets.CPANEL_USERNAME }}:${{ secrets.CPANEL_API_TOKEN }}' \
+                  'https://${{ secrets.CPANEL_SERVER }}:2083/execute/SshWhitelist/add?address=${{ steps.get_ip.outputs.IP_ADDRESS }}&port=22&direction=in'
+
+            # --- 2. PRÉPARATION DE L'APPLICATION SYMFONY ---
             - name: Configuration de PHP
               uses: shivammathur/setup-php@v2
               with:
@@ -28,15 +42,7 @@ jobs:
             - name: Installation des dépendances Composer
               run: composer install --no-dev --optimize-autoloader --no-interaction
 
-            - name: Récupérer l'IP publique du runner
-              id: ip
-              uses: haythem/public-ip@v1.3
-
-            - name: Autoriser l'IP du runner dans le pare-feu SSH via l'API cPanel
-              run: |
-                  curl -s -H 'Authorization: cpanel ${{ secrets.CPANEL_USERNAME }}:${{ secrets.CPANEL_API_TOKEN }}' \
-                  'https://${{ secrets.CPANEL_SERVER }}:2083/execute/SshWhitelist/add?address=${{ steps.ip.outputs.ipv4 }}&port=22'
-
+            # --- 3. DÉPLOIEMENT ET FINALISATION SUR LE SERVEUR ---
             - name: Déployer les fichiers de l'application sur le serveur
               uses: appleboy/scp-action@master
               with:
@@ -57,16 +63,14 @@ jobs:
                       cd ${{ secrets.TARGET_DIR }}
                       chmod +x deploy.sh
                       ./deploy.sh
-            - name: DEBUG - Lister les IPs autorisées
-              if: always()
-              run: |
-                  echo "--- IPs actuellement dans la liste blanche ---"
-                  curl -s -H 'Authorization: cpanel ${{ secrets.CPANEL_USERNAME }}:${{ secrets.CPANEL_API_TOKEN }}' \
-                  'https://${{ secrets.CPANEL_SERVER }}:2083/execute/SshWhitelist/list'
-                  echo "--------------------------------------------"
 
+            # --- 4. NETTOYAGE SÉCURISÉ DE L'IP ---
             - name: Retirer l'IP du runner du pare-feu
-              if: always() && steps.ip.outcome == 'success' # <-- L'ajout crucial
+              if: always() && steps.get_ip.outcome == 'success'
               run: |
+                  # On supprime la règle entrante
                   curl -s -H 'Authorization: cpanel ${{ secrets.CPANEL_USERNAME }}:${{ secrets.CPANEL_API_TOKEN }}' \
-                  'https://${{ secrets.CPANEL_SERVER }}:2083/execute/SshWhitelist/remove?address=${{ steps.ip.outputs.ipv4 }}&port=22'
+                  'https://${{ secrets.CPANEL_SERVER }}:2083/execute/SshWhitelist/remove?address=${{ steps.get_ip.outputs.IP_ADDRESS }}&port=22&direction=in'
+                  # On supprime la règle sortante
+                  curl -s -H 'Authorization: cpanel ${{ secrets.CPANEL_USERNAME }}:${{ secrets.CPANEL_API_TOKEN }}' \
+                  'https://${{ secrets.CPANEL_SERVER }}:2083/execute/SshWhitelist/remove?address=${{ steps.get_ip.outputs.IP_ADDRESS }}&port=22&direction=out'
