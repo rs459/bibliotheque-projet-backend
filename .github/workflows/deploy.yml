@@ -38,7 +38,7 @@ jobs:
             - name: Autoriser l'IP du runner dans le pare-feu SSH via l'API cPanel
               run: |
                   curl -s -H 'Authorization: cpanel ${{ secrets.CPANEL_USERNAME }}:${{ secrets.CPANEL_API_TOKEN }}' \
-                  'https://${{ secrets.CPANEL_SERVER }}:2083/execute/SshWhitelist/add?address=${{ steps.ip.outputs.ipv4 }}'
+                  'https://${{ secrets.CPANEL_SERVER }}:2083/execute/SshWhitelist/add?address=${{ steps.ip.outputs.ipv4 }}&port=22'
 
             # --- 3. DÉPLOIEMENT ET FINALISATION ---
             - name: Déployer les fichiers de l'application sur le serveur
@@ -66,4 +66,4 @@ jobs:
               if: always()
               run: |
                   curl -s -H 'Authorization: cpanel ${{ secrets.CPANEL_USERNAME }}:${{ secrets.CPANEL_API_TOKEN }}' \
-                  'https://${{ secrets.CPANEL_SERVER }}:2083/execute/SshWhitelist/remove?address=${{ steps.ip.outputs.ipv4 }}'
+                  'https://${{ secrets.CPANEL_SERVER }}:2083/execute/SshWhitelist/remove?address=${{ steps.ip.outputs.ipv4 }}&port=22'
