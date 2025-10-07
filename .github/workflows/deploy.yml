@@ -1,0 +1,68 @@
+name: Déploiement de l'API Symfony sur O2Switch (branche deploy)
+
+# Se déclenche à chaque push sur la branche 'deploy'
+on:
+    push:
+        branches: [deploy]
+
+jobs:
+    deploy:
+        runs-on: ubuntu-latest
+
+        steps:
+            # --- 1. PRÉPARATION DE L'APPLICATION ---
+            - name: Récupération du code
+              uses: actions/checkout@v4
+
+            - name: Configuration de PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: "8.3"
+                  extensions: pdo, pdo_mysql
+                  tools: composer
+
+            - name: Installation des dépendances Composer
+              run: composer install --no-dev --optimize-autoloader --no-interaction
+
+            - name: Création du fichier .env.local pour la production
+              run: |
+                  echo "DATABASE_URL='${{ secrets.DATABASE_URL }}'" > .env.local
+                  echo "APP_SECRET='${{ secrets.APP_SECRET }}'" >> .env.local
+
+            # --- 2. GESTION DU PARE-FEU O2SWITCH ---
+            - name: Récupérer l'IP publique du runner
+              id: ip
+              uses: haythem/public-ip@v1.3
+
+            - name: Autoriser l'IP du runner dans le pare-feu SSH via l'API cPanel
+              run: |
+                  curl -s -H 'Authorization: cpanel ${{ secrets.CPANEL_USERNAME }}:${{ secrets.CPANEL_API_TOKEN }}' \
+                  'https://${{ secrets.CPANEL_SERVER }}:2083/execute/SshWhitelist/add?address=${{ steps.ip.outputs.ipv4 }}'
+
+            # --- 3. DÉPLOIEMENT ET FINALISATION ---
+            - name: Déployer les fichiers de l'application sur le serveur
+              uses: appleboy/scp-action@master
+              with:
+                  host: ${{ secrets.CPANEL_SERVER }}
+                  username: ${{ secrets.CPANEL_USERNAME }}
+                  key: ${{ secrets.SSH_PRIVATE_KEY }}
+                  source: "."
+                  target: ${{ secrets.TARGET_DIR }}
+                  rm: true
+
+            - name: Exécuter le script de post-déploiement sur le serveur
+              uses: appleboy/ssh-action@master
+              with:
+                  host: ${{ secrets.CPANEL_SERVER }}
+                  username: ${{ secrets.CPANEL_USERNAME }}
+                  key: ${{ secrets.SSH_PRIVATE_KEY }}
+                  script: |
+                      cd ${{ secrets.TARGET_DIR }}
+                      ./deploy.sh
+
+            # --- 4. NETTOYAGE (SÉCURITÉ) ---
+            - name: Retirer l'IP du runner du pare-feu
+              if: always()
+              run: |
+                  curl -s -H 'Authorization: cpanel ${{ secrets.CPANEL_USERNAME }}:${{ secrets.CPANEL_API_TOKEN }}' \
+                  'https://${{ secrets.CPANEL_SERVER }}:2083/execute/SshWhitelist/remove?address=${{ steps.ip.outputs.ipv4 }}'
