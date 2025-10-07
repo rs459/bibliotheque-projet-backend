@@ -15,17 +15,18 @@ jobs:
             - name: Configuration de PHP
               uses: shivammathur/setup-php@v2
               with:
-                  php-version: "8.2"
+                  php-version: "8.3"
                   extensions: pdo, pdo_mysql
                   tools: composer
-
-            - name: Installation des dépendances Composer
-              run: composer install --no-dev --optimize-autoloader --no-interaction
 
             - name: Création du fichier .env.local pour la production
               run: |
                   echo "DATABASE_URL='${{ secrets.DATABASE_URL }}'" > .env.local
                   echo "APP_SECRET='${{ secrets.APP_SECRET }}'" >> .env.local
+                  echo "APP_ENV=prod" >> .env.local
+
+            - name: Installation des dépendances Composer
+              run: composer install --no-dev --optimize-autoloader --no-interaction
 
             - name: Récupérer l'IP publique du runner
               id: ip
@@ -58,7 +59,7 @@ jobs:
                       ./deploy.sh
 
             - name: Retirer l'IP du runner du pare-feu
-              if: always() && steps.ip.outcome == 'success' # <-- CORRECTION FINALE ICI
+              if: always() && steps.ip.outcome == 'success' # <-- L'ajout crucial
               run: |
                   curl -s -H 'Authorization: cpanel ${{ secrets.CPANEL_USERNAME }}:${{ secrets.CPANEL_API_TOKEN }}' \
                   'https://${{ secrets.CPANEL_SERVER }}:2083/execute/SshWhitelist/remove?address=${{ steps.ip.outputs.ipv4 }}&port=22'
