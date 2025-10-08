@@ -5,7 +5,41 @@ on:
         branches: [deploy]
 
 jobs:
+    test:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Récupération du code
+              uses: actions/checkout@v4
+
+            - name: Lancement des conteneurs de test
+              run: docker compose up -d
+
+            - name: Installation des dépendances (dans Docker)
+              # L'option -T est importante pour les environnements non-interactifs comme CI/CD
+              run: docker compose exec -T app composer install
+
+            - name: Préparation de la base de données de test (dans Docker)
+              run: |
+                  # Laisse le temps à la BDD de démarrer complètement
+                  sleep 10
+                  # Crée la base de données de test si elle n'existe pas
+                  docker compose exec -T app php bin/console doctrine:database:create --if-not-exists --env=test
+                  # Applique les migrations sur la BDD de test
+                  docker compose exec -T app php bin/console doctrine:migrations:migrate -n --env=test
+                  # Optionnel : chargez vos fixtures de test ici
+                  # docker compose exec -T app php bin/console doctrine:fixtures:load -n --env=test
+
+            - name: Lancement des tests (dans Docker)
+              run: docker compose exec -T app php bin/phpunit --testdox
+
+            - name: Arrêt des conteneurs de test
+              # s'exécute toujours, même si les tests échouent
+              if: always()
+              run: docker compose down
+
     deploy:
+        needs: test
         runs-on: ubuntu-latest
 
         steps:

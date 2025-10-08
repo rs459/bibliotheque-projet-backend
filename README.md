@@ -87,12 +87,10 @@ php bin/console doctrine:fixtures:load
 php -S Votre_ip_locale:port -t public
 ```
 
-Vous pouvez maintenant lancer le serveur web local de Symfony
+Ou
 
 ```bash
 symfony server:start
 ```
-
-
 
 Votre API sera accessible à l'adresse indiquée dans le terminal (généralement `https://127.0.0.1:8000`).
