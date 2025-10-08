@@ -16,3 +16,5 @@ WORKDIR /app
 
 # Copie le code de l'application
 COPY . .
+
+RUN touch .env
