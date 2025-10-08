@@ -38,6 +38,12 @@ jobs:
                   echo "DATABASE_URL='${{ secrets.DATABASE_URL }}'" > .env.local
                   echo "APP_SECRET='${{ secrets.APP_SECRET }}'" >> .env.local
                   echo "APP_ENV=prod" >> .env.local
+                  echo "JWT_PASSPHRASE='${{ secrets.JWT_PASSPHRASE }}'" >> .env.local
+
+                  # Création des clés JWT
+                  mkdir -p config/jwt
+                  echo "${{ secrets.JWT_PRIVATE_KEY }}" > config/jwt/private.pem
+                  echo "${{ secrets.JWT_PUBLIC_KEY }}" > config/jwt/public.pem
 
             - name: Installation des dépendances Composer
               run: composer install --no-dev --optimize-autoloader --no-interaction
