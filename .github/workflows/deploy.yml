@@ -23,10 +23,9 @@ jobs:
               run: |
                   # Laisse le temps à la BDD de démarrer complètement
                   sleep 10
-                  # Crée la base de données de test si elle n'existe pas
-                  docker compose exec -T app php bin/console doctrine:database:create --if-not-exists --env=test
-                  # Applique les migrations sur la BDD de test
-                  docker compose exec -T app php bin/console doctrine:migrations:migrate -n --env=test
+                  # On utilise l'utilisateur root pour créer la BDD et appliquer les migrations
+                  docker compose exec -T -e DATABASE_URL='mysql://root:rootpass@db:3306/testdb?serverVersion=mariadb-11.4.8' app php bin/console doctrine:database:create --if-not-exists --env=test
+                  docker compose exec -T -e DATABASE_URL='mysql://root:rootpass@db:3306/testdb?serverVersion=mariadb-11.4.8' app php bin/console doctrine:migrations:migrate -n --env=test
                   # Optionnel : chargez vos fixtures de test ici
                   # docker compose exec -T app php bin/console doctrine:fixtures:load -n --env=test
 
