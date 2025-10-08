@@ -1,0 +1,21 @@
+# This file defines the services needed to run your application in a test environment.
+services:
+    app:
+        build:
+            context: .
+        environment:
+            # We pass the test database URL to the application.
+            # This is the standard variable Symfony looks for.
+            - APP_ENV=test
+            - DATABASE_URL=mysql://testuser:testpass@db:3306/testdb?serverVersion=mariadb-11.4.8
+
+    db:
+        image: mariadb:11.4.8
+        environment:
+            - MYSQL_ROOT_PASSWORD=rootpass
+            - MYSQL_DATABASE=testdb
+            - MYSQL_USER=testuser
+            - MYSQL_PASSWORD=testpass
+        volumes:
+            # Persists database data between runs
+            - ./db_data:/var/lib/mysql
