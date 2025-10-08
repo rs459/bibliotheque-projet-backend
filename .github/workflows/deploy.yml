@@ -17,7 +17,7 @@ jobs:
 
             - name: Installation des dépendances (dans Docker)
               # L'option -T est importante pour les environnements non-interactifs comme CI/CD
-              run: docker compose exec -T -e APP_ENV=test -e APP_SECRET='s3cr3t_for_tests' -e DATABASE_URL='mysql://testuser:testpass@db:3306/testdb?serverVersion=mariadb-11.4' app composer install
+              run: docker compose exec -T -e APP_ENV=test -e APP_SECRET='s3cr3t_for_tests' -e DATABASE_URL='mysql://testuser:testpass@db:3306/testdb?serverVersion=mariadb-11.4.8' app composer install
 
             - name: Préparation de la base de données de test (dans Docker)
               run: |
