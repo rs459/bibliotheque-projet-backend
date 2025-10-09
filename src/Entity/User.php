@@ -4,10 +4,13 @@ namespace App\Entity;
 
 use App\Repository\UserRepository;
 use Doctrine\ORM\Mapping as ORM;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Validator\Constraints as Assert;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
+use Gesdinet\JWTRefreshTokenBundle\Entity\RefreshToken;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[UniqueEntity(fields: ['email'], message: 'Cette adresse e-mail n\'est pas disponible.')]
@@ -55,6 +58,15 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     )]
 
     private ?string $password = null;
+
+    #[ORM\OneToMany(mappedBy: 'user', targetEntity: RefreshToken::class, cascade: ['persist', 'remove'])]
+    private Collection $refreshTokens;
+
+    public function __construct()
+    {
+        $this->refreshTokens = new ArrayCollection();
+    }
+
 
     public function getId(): ?int
     {
@@ -135,5 +147,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function eraseCredentials(): void
     {
         // @deprecated, to be removed when upgrading to Symfony 8
+    }
+
+    public function getRefreshTokens(): Collection
+    {
+        return $this->refreshTokens;
     }
 }
