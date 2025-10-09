@@ -21,8 +21,12 @@ jobs:
 
             - name: Préparation de la base de données de test (dans Docker)
               run: |
-                  # Laisse le temps à la BDD de démarrer complètement
-                  sleep 10
+                  # Attend que la base de données soit prête au lieu d'un sleep fixe
+                  echo "Waiting for database to be ready..."
+                  until docker compose exec db mysqladmin ping -h"127.0.0.1" -u"root" -p"rootpass" --silent; do
+                      sleep 1
+                  done
+                  echo "Database is ready."
                   # On utilise l'utilisateur root pour créer la BDD et appliquer les migrations
                   docker compose exec -T -e DATABASE_URL='mysql://root:rootpass@db:3306/testdb?serverVersion=mariadb-11.4.8' app php bin/console doctrine:database:create --if-not-exists --env=test
                   docker compose exec -T -e DATABASE_URL='mysql://root:rootpass@db:3306/testdb?serverVersion=mariadb-11.4.8' app php bin/console doctrine:migrations:migrate -n --env=test
@@ -66,6 +70,14 @@ jobs:
                   extensions: pdo, pdo_mysql
                   tools: composer
 
+            - name: Cache des dépendances Composer
+              uses: actions/cache@v4
+              with:
+                  path: ~/.composer/cache/files
+                  key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+                  restore-keys: |
+                      ${{ runner.os }}-composer-
+
             - name: Création du fichier .env.local pour la production
               run: |
                   echo "DATABASE_URL='${{ secrets.DATABASE_URL }}'" > .env.local
@@ -82,7 +94,7 @@ jobs:
               run: composer install --no-dev --optimize-autoloader --no-interaction
 
             # --- 3. DÉPLOIEMENT ET FINALISATION SUR LE SERVEUR ---
-            - name: Déployer les fichiers de l'application sur le serveur
+            - name: Déployer les fichiers via SCP
               uses: appleboy/scp-action@master
               with:
                   host: ${{ secrets.CPANEL_SERVER }}
