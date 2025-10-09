@@ -17,7 +17,7 @@ WORKDIR /app
 COPY composer.json composer.lock ./
 
 # 2. Installer les dépendances SANS exécuter de scripts
-RUN composer install --no-dev --no-scripts --no-interaction --optimize-autoloader
+RUN composer install --no-scripts --no-interaction --optimize-autoloader
 
 # 3. Copier le reste du code de l'application
 COPY . .
