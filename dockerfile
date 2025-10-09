@@ -22,8 +22,9 @@ RUN composer install --no-scripts --no-interaction --optimize-autoloader
 # 3. Copier le reste du code de l'application (incluant bin/console)
 COPY . .
 
-# 4. CORRIGÉ : Créer le fichier .env vide AVANT de lancer les scripts
+# 4. Créer le fichier .env vide AVANT de lancer les scripts
 RUN touch .env
 
-# 5. Exécuter les scripts MAINTENANT que .env et bin/console existent.
-RUN APP_SECRET=dummysecretforbuild DATABASE_URL=mysql://dummy:dummy@dummy/dummy composer run-script post-install-cmd
+# 5. CORRIGÉ : Exécuter les scripts en pointant vers le service 'db',
+#    même si la base de données spécifique n'existe pas encore.
+RUN APP_SECRET=dummysecretforbuild DATABASE_URL=mysql://user:pass@db:3306/temp_build_db?serverVersion=mariadb-11.4.8 composer run-script post-install-cmd
