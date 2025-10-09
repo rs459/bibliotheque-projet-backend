@@ -13,17 +13,22 @@ jobs:
               uses: actions/checkout@v4
 
             - name: Lancement des conteneurs de test
-              run: docker compose up -d
+              # On définit le mot de passe root ici pour qu'il soit utilisé par docker-compose.yml
+              # et par les commandes de vérification de la BDD.
+              run: MYSQL_ROOT_PASSWORD=rootpass docker compose up -d
 
             - name: Installation des dépendances (dans Docker)
               # L'option -T est importante pour les environnements non-interactifs comme CI/CD
               run: docker compose exec -T -e APP_ENV=test -e APP_SECRET='s3cr3t_for_tests' -e DATABASE_URL='mysql://testuser:testpass@db:3306/testdb?serverVersion=mariadb-11.4.8' app composer install
 
             - name: Préparation de la base de données de test (dans Docker)
+              env:
+                  # On réutilise la même variable pour la vérification de la connexion
+                  MYSQL_ROOT_PASSWORD: rootpass
               run: |
                   # Attend que la base de données soit prête à accepter des connexions
                   echo "En attente de la base de données..."
-                  until docker compose exec -T db mysql -u root -prootpass -e "SELECT 1" &>/dev/null; do
+                  until docker compose exec -T db mysql -u root -p"$MYSQL_ROOT_PASSWORD" -e "SELECT 1"; do
                       sleep 2
                   done
                   echo "Base de données prête."
