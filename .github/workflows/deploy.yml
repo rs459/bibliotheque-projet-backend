@@ -10,40 +10,35 @@ jobs:
 
         steps:
             - name: Récupération du code
-              uses: actions/checkout@v4
+              # AMÉLIORÉ : Version spécifique pour la stabilité
+              uses: actions/checkout@v4.1.7
 
             - name: Lancement des conteneurs de test
-              # On définit le mot de passe root ici pour qu'il soit utilisé par docker-compose.yml
-              # et par les commandes de vérification de la BDD.
               run: MYSQL_ROOT_PASSWORD=rootpass docker compose up -d
 
             - name: Installation des dépendances (dans Docker)
-              # L'option -T est importante pour les environnements non-interactifs comme CI/CD
               run: docker compose exec -T -e APP_ENV=test -e APP_SECRET='s3cr3t_for_tests' -e DATABASE_URL='mysql://testuser:testpass@db:3306/testdb?serverVersion=mariadb-11.4.8' app composer install
 
             - name: Préparation de la base de données de test (dans Docker)
               env:
-                  # On réutilise la même variable pour la vérification de la connexion
                   MYSQL_ROOT_PASSWORD: rootpass
               run: |
-                  # Attend que la base de données soit prête à accepter des connexions
                   echo "En attente de la base de données..."
-                  until docker compose exec -T db mysql -u root -p"$MYSQL_ROOT_PASSWORD" -e "SELECT 1"; do
+                  # CORRIGÉ : Utilisation de 'mariadb' au lieu de 'mysql'
+                  until docker compose exec -T db mariadb -u root -p"$MYSQL_ROOT_PASSWORD" -e "SELECT 1"; do
                       sleep 2
                   done
                   echo "Base de données prête."
 
-                  # On utilise l'utilisateur root pour créer la BDD (testdb_test) et appliquer les migrations
+                  # Création de la BDD de test avec l'utilisateur root
                   docker compose exec -T -e DATABASE_URL='mysql://root:rootpass@db:3306/testdb_test?serverVersion=mariadb-11.4.8' app php bin/console doctrine:database:create --if-not-exists --env=test
-                  docker compose exec -T -e DATABASE_URL='mysql://root:rootpass@db:3306/testdb_test?serverVersion=mariadb-11.4.8' app php bin/console doctrine:migrations:migrate -n --env=test
-                  # Optionnel : chargez vos fixtures de test ici
-                  # docker compose exec -T app php bin/console doctrine:fixtures:load -n --env=test
+                  # AMÉLIORÉ : Lancement des migrations avec l'utilisateur de l'application (moins de privilèges)
+                  docker compose exec -T -e DATABASE_URL='mysql://testuser:testpass@db:3306/testdb_test?serverVersion=mariadb-11.4.8' app php bin/console doctrine:migrations:migrate -n --env=test
 
             - name: Lancement des tests (dans Docker)
               run: docker compose exec -T app php bin/phpunit --testdox
 
             - name: Arrêt des conteneurs de test
-              # s'exécute toujours, même si les tests échouent
               if: always()
               run: docker compose down
 
@@ -52,11 +47,11 @@ jobs:
         runs-on: ubuntu-latest
 
         steps:
-            # --- 1. CONFIGURATION ET RÉCUPÉRATION DE L'IP ---
             - name: Récupération du code
-              uses: actions/checkout@v4
+              # AMÉLIORÉ : Version spécifique
+              uses: actions/checkout@v4.1.7
 
-            - name: Récupérer l'IP publique via l'API cPanel (Source de vérité)
+            - name: Récupérer l'IP publique via l'API cPanel
               id: get_ip
               run: |
                   IP=$(curl -s -H 'Authorization: cpanel ${{ secrets.CPANEL_USERNAME }}:${{ secrets.CPANEL_API_TOKEN }}' \
@@ -68,16 +63,17 @@ jobs:
                   curl -s -H 'Authorization: cpanel ${{ secrets.CPANEL_USERNAME }}:${{ secrets.CPANEL_API_TOKEN }}' \
                   'https://${{ secrets.CPANEL_SERVER }}:2083/execute/SshWhitelist/add?address=${{ steps.get_ip.outputs.IP_ADDRESS }}&port=22&direction=in'
 
-            # --- 2. PRÉPARATION DE L'APPLICATION SYMFONY ---
             - name: Configuration de PHP
-              uses: shivammathur/setup-php@v2
+              # AMÉLIORÉ : Version spécifique
+              uses: shivammathur/setup-php@v2.31.0
               with:
                   php-version: "8.3"
                   extensions: pdo, pdo_mysql
                   tools: composer
 
             - name: Cache des dépendances Composer
-              uses: actions/cache@v4
+              # AMÉLIORÉ : Version spécifique
+              uses: actions/cache@v4.0.2
               with:
                   path: ~/.composer/cache/files
                   key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
@@ -91,7 +87,6 @@ jobs:
                   echo "APP_ENV=prod" >> .env.local
                   echo "JWT_PASSPHRASE='${{ secrets.JWT_PASSPHRASE }}'" >> .env.local
 
-                  # Création des clés JWT
                   mkdir -p config/jwt
                   echo "${{ secrets.JWT_PRIVATE_KEY }}" > config/jwt/private.pem
                   echo "${{ secrets.JWT_PUBLIC_KEY }}" > config/jwt/public.pem
@@ -99,9 +94,9 @@ jobs:
             - name: Installation des dépendances Composer
               run: composer install --no-dev --optimize-autoloader --no-interaction
 
-            # --- 3. DÉPLOIEMENT ET FINALISATION SUR LE SERVEUR ---
             - name: Déployer les fichiers via SCP
-              uses: appleboy/scp-action@master
+              # AMÉLIORÉ : Version spécifique
+              uses: appleboy/scp-action@v1.0.3
               with:
                   host: ${{ secrets.CPANEL_SERVER }}
                   username: ${{ secrets.CPANEL_USERNAME }}
@@ -111,7 +106,8 @@ jobs:
                   rm: true
 
             - name: Exécuter le script de post-déploiement sur le serveur
-              uses: appleboy/ssh-action@master
+              # AMÉLIORÉ : Version spécifique
+              uses: appleboy/ssh-action@v1.0.3
               with:
                   host: ${{ secrets.CPANEL_SERVER }}
                   username: ${{ secrets.CPANEL_USERNAME }}
@@ -121,13 +117,10 @@ jobs:
                       chmod +x deploy.sh
                       ./deploy.sh
 
-            # --- 4. NETTOYAGE SÉCURISÉ DE L'IP ---
             - name: Retirer l'IP du runner du pare-feu
               if: always() && steps.get_ip.outcome == 'success'
               run: |
-                  # On supprime la règle entrante
                   curl -s -H 'Authorization: cpanel ${{ secrets.CPANEL_USERNAME }}:${{ secrets.CPANEL_API_TOKEN }}' \
                   'https://${{ secrets.CPANEL_SERVER }}:2083/execute/SshWhitelist/remove?address=${{ steps.get_ip.outputs.IP_ADDRESS }}&port=22&direction=in'
-                  # On supprime la règle sortante
                   curl -s -H 'Authorization: cpanel ${{ secrets.CPANEL_USERNAME }}:${{ secrets.CPANEL_API_TOKEN }}' \
                   'https://${{ secrets.CPANEL_SERVER }}:2083/execute/SshWhitelist/remove?address=${{ steps.get_ip.outputs.IP_ADDRESS }}&port=22&direction=out'
