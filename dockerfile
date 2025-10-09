@@ -17,11 +17,13 @@ WORKDIR /app
 COPY composer.json composer.lock ./
 
 # 2. Installer les dépendances SANS exécuter de scripts
-#    C'est la couche qui sera mise en cache
 RUN composer install --no-dev --no-scripts --no-interaction --optimize-autoloader
 
 # 3. Copier le reste du code de l'application
 COPY . .
 
-# 4. Générer l'autoloader optimisé. C'est une opération sûre qui ne démarre pas le noyau Symfony.
+# 4. AJOUT : Créer un fichier .env vide pour que le noyau Symfony puisse démarrer
+RUN touch .env
+
+# 5. Générer l'autoloader optimisé
 RUN composer dump-autoload --optimize --no-dev --classmap-authoritative
