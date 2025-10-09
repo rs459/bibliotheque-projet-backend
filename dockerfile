@@ -13,18 +13,21 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Définit le répertoire de travail
 WORKDIR /app
 
+# --- SÉQUENCE CORRIGÉE ---
+
 # 1. Copier UNIQUEMENT les fichiers de dépendances
 COPY composer.json composer.lock ./
 
-# 2. CORRIGÉ : On fournit un secret temporaire pour permettre aux scripts de s'exécuter
-#    Le secret n'a pas besoin d'être le vrai, il doit juste exister.
-#    On enlève --no-scripts pour que l'autoloader de PHPUnit soit correctement généré.
-RUN APP_SECRET=dummysecretforbuild DATABASE_URL=mysql://dummy:dummy@dummy/dummy composer install --no-interaction --optimize-autoloader
+# 2. Installer les dépendances SANS exécuter de scripts.
+#    Ceci crée une couche de cache stable pour vos vendors.
+RUN composer install --no-scripts --no-interaction --optimize-autoloader
 
-# 3. Copier le reste du code de l'application
+# 3. Copier le reste du code de l'application (incluant bin/console)
 COPY . .
 
-# 4. Créer un fichier .env vide pour que le noyau Symfony puisse démarrer dans les commandes 'exec'
-RUN touch .env
+# 4. Exécuter les scripts MAINTENANT que tout le code est présent.
+#    On fournit les variables temporaires nécessaires pour que ça ne plante pas.
+RUN APP_SECRET=dummysecretforbuild DATABASE_URL=mysql://dummy:dummy@dummy/dummy composer run-script post-install-cmd
 
-# SUPPRIMÉ : Le 'dump-autoload' est maintenant inclus dans 'composer install'
+# 5. Créer un fichier .env vide pour les commandes 'exec' futures
+RUN touch .env
