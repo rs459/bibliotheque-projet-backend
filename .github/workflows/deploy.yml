@@ -12,11 +12,39 @@ jobs:
             - name: Récupération du code
               uses: actions/checkout@v4
 
+            # AMÉLIORÉ : Étape pour mettre en cache les couches de l'image Docker
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v3
+
+            - name: Cache Docker layers
+              uses: actions/cache@v4
+              with:
+                  path: /tmp/.buildx-cache
+                  key: ${{ runner.os }}-buildx-${{ github.sha }}
+                  restore-keys: |
+                      ${{ runner.os }}-buildx-
+
+            # AMÉLIORÉ : On build l'image ici en utilisant le cache
+            - name: Build the Docker image
+              uses: docker/build-push-action@v5
+              with:
+                  context: .
+                  load: true # Charge l'image dans le runner pour docker compose, ne la pousse pas
+                  tags: my-symfony-app:latest
+                  cache-from: type=local,src=/tmp/.buildx-cache
+                  cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+
+            # This ugly bit is necessary if you don't want to push the cache to a registry
+            - name: Move cache
+              run: |
+                  rm -rf /tmp/.buildx-cache
+                  mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
             - name: Lancement des conteneurs de test
               run: MYSQL_ROOT_PASSWORD=rootpass docker compose up -d
 
-            - name: Installation des dépendances (dans Docker)
-              run: docker compose exec -T -e APP_ENV=test -e APP_SECRET='s3cr3t_for_tests' -e DATABASE_URL='mysql://testuser:testpass@db:3306/testdb?serverVersion=mariadb-11.4.8' app composer install
+            # SUPPRIMÉ : Le 'composer install' est maintenant dans le Dockerfile
+            # - name: Installation des dépendances (dans Docker) ...
 
             - name: Préparation de la base de données de test (dans Docker)
               env:
@@ -27,12 +55,12 @@ jobs:
                       sleep 2
                   done
                   echo "Base de données prête."
-
-                  docker compose exec -T -e DATABASE_URL='mysql://root:rootpass@db:3306/testdb?serverVersion=mariadb-11.4.8' app php bin/console doctrine:database:create --if-not-exists --env=test
-                  docker compose exec -T -e DATABASE_URL='mysql://root:rootpass@db:3306/testdb?serverVersion=mariadb-11.4.8' app php bin/console doctrine:migrations:migrate -n --env=test
+                  docker compose exec -T -e APP_ENV=test app php bin/console doctrine:database:create --if-not-exists
+                  docker compose exec -T -e APP_ENV=test app php bin/console doctrine:migrations:migrate -n
 
             - name: Lancement des tests (dans Docker)
-              run: docker compose exec -T app php bin/phpunit --testdox
+              # On ajoute la DATABASE_URL ici car elle n'est plus passée par la commande exec
+              run: docker compose exec -T -e DATABASE_URL='mysql://testuser:testpass@db:3306/testdb_test?serverVersion=mariadb-11.4.8' app php bin/phpunit --testdox
 
             - name: Arrêt des conteneurs de test
               if: always()
