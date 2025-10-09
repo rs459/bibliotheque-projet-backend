@@ -19,7 +19,7 @@ COPY composer.json composer.lock ./
 # 2. CORRIGÉ : On fournit un secret temporaire pour permettre aux scripts de s'exécuter
 #    Le secret n'a pas besoin d'être le vrai, il doit juste exister.
 #    On enlève --no-scripts pour que l'autoloader de PHPUnit soit correctement généré.
-RUN APP_SECRET=dummysecretforbuild composer install --no-interaction --optimize-autoloader
+RUN APP_SECRET=dummysecretforbuild DATABASE_URL=mysql://dummy:dummy@dummy/dummy composer install --no-interaction --optimize-autoloader
 
 # 3. Copier le reste du code de l'application
 COPY . .
