@@ -21,11 +21,12 @@ jobs:
 
             - name: Préparation de la base de données de test (dans Docker)
               run: |
-                  # Laisse le temps à la BDD de démarrer complètement
-                    while ! docker compose exec -T db mysqladmin ping -h"db" --silent; do
-                        echo "En attente de la base de données..."
-                        sleep 2
-                    done
+                  # Attend que la base de données soit prête à accepter des connexions
+                  echo "En attente de la base de données..."
+                  until docker compose exec -T db mysql -u root -prootpass -e "SELECT 1" &>/dev/null; do
+                      sleep 2
+                  done
+                  echo "Base de données prête."
 
                   # On utilise l'utilisateur root pour créer la BDD (testdb_test) et appliquer les migrations
                   docker compose exec -T -e DATABASE_URL='mysql://root:rootpass@db:3306/testdb_test?serverVersion=mariadb-11.4.8' app php bin/console doctrine:database:create --if-not-exists --env=test
