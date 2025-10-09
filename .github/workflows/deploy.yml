@@ -31,8 +31,8 @@ jobs:
                   # On utilise l'utilisateur root et le nom 'testdb'. Symfony ajoutera le suffixe '_test'.
                   docker compose exec -T -e DATABASE_URL='mysql://root:rootpass@db:3306/testdb?serverVersion=mariadb-11.4.8' app php bin/console doctrine:database:create --if-not-exists --env=test
 
-                  # On utilise aussi l'utilisateur root pour les migrations sur la BDD 'testdb_test' qui vient d'être créée.
-                  docker compose exec -T -e DATABASE_URL='mysql://root:rootpass@db:3306/testdb_test?serverVersion=mariadb-11.4.8' app php bin/console doctrine:migrations:migrate -n --env=test
+                  # CORRIGÉ : On utilise la MÊME URL de base pour les migrations.
+                  docker compose exec -T -e DATABASE_URL='mysql://root:rootpass@db:3306/testdb?serverVersion=mariadb-11.4.8' app php bin/console doctrine:migrations:migrate -n --env=test
 
             - name: Lancement des tests (dans Docker)
               run: docker compose exec -T app php bin/phpunit --testdox
