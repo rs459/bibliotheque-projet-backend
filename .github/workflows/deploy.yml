@@ -10,7 +10,7 @@ jobs:
 
         steps:
             - name: Récupération du code
-              uses: actions/checkout@v4.1.7
+              uses: actions/checkout@v4
 
             - name: Lancement des conteneurs de test
               run: MYSQL_ROOT_PASSWORD=rootpass docker compose up -d
@@ -23,19 +23,17 @@ jobs:
                   MYSQL_ROOT_PASSWORD: rootpass
               run: |
                   echo "En attente de la base de données..."
-                  until docker compose exec -T db mariadb -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD" -e "SELECT 1" > /dev/null; do
+                  # CORRIGÉ : On se connecte à l'hôte 'db' (nom du service Docker)
+                  until docker compose exec -T db mariadb -h db -u root -p"$MYSQL_ROOT_PASSWORD" -e "SELECT 1" > /dev/null; do
                       sleep 2
                   done
                   echo "Base de données prête."
 
-                  # 1. Créer la base de données de test avec l'utilisateur root.
-                  docker compose exec -T -e DATABASE_URL='mysql://root:rootpass@db:3306/testdb_test?serverVersion=mariadb-11.4.8' app php bin/console doctrine:database:create --if-not-exists --env=test
-
-                  # 2. Donner les droits à l'utilisateur de test sur la nouvelle base de données.
-                  docker compose exec -T db mariadb -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD" -e "GRANT ALL PRIVILEGES ON testdb_test.* TO 'testuser'@'%';"
-
-                  # 3. Lancer les migrations avec l'utilisateur de l'application, qui a maintenant les droits.
-                  docker compose exec -T -e DATABASE_URL='mysql://testuser:testpass@db:3306/testdb_test?serverVersion=mariadb-11.4.8' app php bin/console doctrine:migrations:migrate -n --env=test
+                  # SIMPLIFIÉ : On utilise l'utilisateur root et le nom de base 'testdb' pour TOUT.
+                  # C'est la méthode la plus simple et fiable en CI.
+                  # Symfony ajoutera automatiquement le suffixe '_test' au nom de la base.
+                  docker compose exec -T -e DATABASE_URL='mysql://root:rootpass@db:3306/testdb?serverVersion=mariadb-11.4.8' app php bin/console doctrine:database:create --if-not-exists --env=test
+                  docker compose exec -T -e DATABASE_URL='mysql://root:rootpass@db:3306/testdb?serverVersion=mariadb-11.4.8' app php bin/console doctrine:migrations:migrate -n --env=test
 
             - name: Lancement des tests (dans Docker)
               run: docker compose exec -T app php bin/phpunit --testdox
