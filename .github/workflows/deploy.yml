@@ -23,15 +23,11 @@ jobs:
                   MYSQL_ROOT_PASSWORD: rootpass
               run: |
                   echo "En attente de la base de données..."
-                  # CORRIGÉ : On se connecte à l'hôte 'db' (nom du service Docker)
                   until docker compose exec -T db mariadb -h db -u root -p"$MYSQL_ROOT_PASSWORD" -e "SELECT 1" > /dev/null; do
                       sleep 2
                   done
                   echo "Base de données prête."
 
-                  # SIMPLIFIÉ : On utilise l'utilisateur root et le nom de base 'testdb' pour TOUT.
-                  # C'est la méthode la plus simple et fiable en CI.
-                  # Symfony ajoutera automatiquement le suffixe '_test' au nom de la base.
                   docker compose exec -T -e DATABASE_URL='mysql://root:rootpass@db:3306/testdb?serverVersion=mariadb-11.4.8' app php bin/console doctrine:database:create --if-not-exists --env=test
                   docker compose exec -T -e DATABASE_URL='mysql://root:rootpass@db:3306/testdb?serverVersion=mariadb-11.4.8' app php bin/console doctrine:migrations:migrate -n --env=test
 
