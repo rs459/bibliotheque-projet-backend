@@ -16,12 +16,24 @@ class UserController extends AbstractController
     #[IsGranted('ROLE_USER')]
     public function deleteAccount(EntityManagerInterface $entityManager): JsonResponse
     {
+        /** @var User|null $user */
         $user = $this->getUser();
 
         if (!$user) {
             return $this->json(['error' => 'User not found'], 404);
         }
 
+        // Supprimer d'abord tous les livres de l'utilisateur
+        foreach ($user->getBooks() as $book) {
+            $entityManager->remove($book);
+        }
+
+        // Supprimer tous les refresh tokens
+        foreach ($user->getRefreshTokens() as $token) {
+            $entityManager->remove($token);
+        }
+
+        // Enfin, supprimer l'utilisateur
         $entityManager->remove($user);
         $entityManager->flush();
 
