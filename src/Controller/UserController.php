@@ -2,44 +2,48 @@
 
 namespace App\Controller;
 
+use App\Entity\Book;
 use App\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/api/users')]
 class UserController extends AbstractController
 {
-    #[Route('/me', name: 'api_user_delete', methods: ['DELETE'])]
     #[IsGranted('ROLE_USER')]
-    public function deleteAccount(EntityManagerInterface $entityManager): JsonResponse
+    public function deleteAccount(EntityManagerInterface $entityManager): Response
     {
         /** @var User|null $user */
         $user = $this->getUser();
 
         if (!$user) {
-            return $this->json(['error' => 'User not found'], 404);
+            return new JsonResponse(['error' => 'User not found'], 404);
         }
 
-        // Supprimer d'abord tous les livres de l'utilisateur
-        foreach ($user->getBooks() as $book) {
-            $entityManager->remove($book);
-        }
+        $userId = $user->getId();
+        $userEmail = $user->getEmail();
 
-        // Supprimer tous les refresh tokens
-        foreach ($user->getRefreshTokens() as $token) {
-            $entityManager->remove($token);
-        }
+        // Supprimer tous les livres avec DQL (ne charge pas les entités)
+        $entityManager->createQuery('DELETE FROM App\Entity\Book b WHERE b.user = :userId')
+            ->setParameter('userId', $userId)
+            ->execute();
 
-        // Enfin, supprimer l'utilisateur
-        $entityManager->remove($user);
-        $entityManager->flush();
+        // Supprimer les refresh tokens avec DQL
+        $entityManager->createQuery('DELETE FROM App\Entity\RefreshToken rt WHERE rt.username = :email')
+            ->setParameter('email', $userEmail)
+            ->execute();
 
-        return $this->json(['message' => 'Account deleted successfully']);
+        // Supprimer l'utilisateur avec DQL pour éviter le chargement de la collection
+        $entityManager->createQuery('DELETE FROM App\Entity\User u WHERE u.id = :userId')
+            ->setParameter('userId', $userId)
+            ->execute();
+
+        return new JsonResponse(['message' => 'Account deleted successfully'], 200);
     }
-
     #[Route('/{id}/block', name: 'api_user_block', methods: ['PATCH'])]
     #[IsGranted('ROLE_ADMIN')]
     public function blockUser(int $id, EntityManagerInterface $entityManager): JsonResponse

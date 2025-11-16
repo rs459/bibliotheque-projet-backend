@@ -9,3 +9,8 @@ api_login_check:
 
 api_refresh_token:
     path: /api/token/refresh
+
+delete_account:
+    path: /api/users/me
+    controller: App\Controller\UserController::deleteAccount
+    methods: [DELETE]
