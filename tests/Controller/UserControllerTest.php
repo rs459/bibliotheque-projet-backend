@@ -28,15 +28,19 @@ class UserControllerTest extends WebTestCase
         $em->persist($user);
         $em->flush();
 
-        // Login
-        $client->request('POST', '/api/login', [], [], [
+        // Login - l'endpoint est /api/login_check selon la configuration security.yaml
+        $client->request('POST', '/api/login_check', [], [], [
             'CONTENT_TYPE' => 'application/json',
         ], json_encode([
             'email' => $email,
             'password' => 'Test123!',
         ]));
 
-        $data = json_decode($client->getResponse()->getContent(), true);
+        $response = $client->getResponse();
+        $this->assertResponseIsSuccessful('Login failed: ' . $response->getContent());
+
+        $data = json_decode($response->getContent(), true);
+        $this->assertArrayHasKey('token', $data, 'Token not found in login response');
         $token = $data['token'];
 
         $client->setServerParameter('HTTP_AUTHORIZATION', sprintf('Bearer %s', $token));
