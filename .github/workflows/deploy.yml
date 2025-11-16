@@ -1,117 +1,117 @@
 name: Déploiement de l'API Symfony sur O2Switch (branche deploy)
 
 on:
-    push:
-        branches: [deploy]
+  push:
+    branches: [deploy]
 
 jobs:
-    test:
-        runs-on: ubuntu-latest
+  test:
+    runs-on: ubuntu-latest
 
-        steps:
-            - name: Récupération du code
-              uses: actions/checkout@v4
+    steps:
+      - name: Récupération du code
+        uses: actions/checkout@v4
 
-            - name: Lancement des conteneurs de test
-              run: docker compose up -d
+      - name: Lancement des conteneurs de test
+        run: docker compose up -d
 
-            - name: Installation des dépendances (dans Docker)
-              # L'option -T est importante pour les environnements non-interactifs comme CI/CD
-              run: docker compose exec -T -e APP_ENV=test -e APP_SECRET='s3cr3t_for_tests' -e DATABASE_URL='mysql://testuser:testpass@db:3306/testdb?serverVersion=mariadb-11.4.8' app composer install
+      - name: Installation des dépendances (dans Docker)
+        # L'option -T est importante pour les environnements non-interactifs comme CI/CD
+        run: docker compose exec -T -e APP_ENV=test -e APP_SECRET='s3cr3t_for_tests' -e DATABASE_URL='mysql://testuser:testpass@db:3306/testdb?serverVersion=mariadb-11.4.8' app composer install
 
-            - name: Préparation de la base de données de test (dans Docker)
-              run: |
-                  # Laisse le temps à la BDD de démarrer complètement
-                  sleep 10
-                  # On utilise l'utilisateur root pour créer la BDD et appliquer les migrations
-                  docker compose exec -T -e DATABASE_URL='mysql://root:rootpass@db:3306/testdb?serverVersion=mariadb-11.4.8' app php bin/console doctrine:database:create --if-not-exists --env=test
-                  docker compose exec -T -e DATABASE_URL='mysql://root:rootpass@db:3306/testdb?serverVersion=mariadb-11.4.8' app php bin/console doctrine:migrations:migrate -n --env=test
-                  # Optionnel : chargez vos fixtures de test ici
-                  # docker compose exec -T app php bin/console doctrine:fixtures:load -n --env=test
+      - name: Préparation de la base de données de test (dans Docker)
+        run: |
+          # Laisse le temps à la BDD de démarrer complètement
+          sleep 10
+          # On crée directement testdb_test (car --env=test ajoute le suffixe _test)
+          docker compose exec -T -e DATABASE_URL='mysql://root:rootpass@db:3306/testdb_test?serverVersion=mariadb-11.4.8' app php bin/console doctrine:database:create --if-not-exists
+          docker compose exec -T -e DATABASE_URL='mysql://root:rootpass@db:3306/testdb_test?serverVersion=mariadb-11.4.8' app php bin/console doctrine:migrations:migrate -n
+          # Optionnel : chargez vos fixtures de test ici
+          # docker compose exec -T app php bin/console doctrine:fixtures:load -n
 
-            - name: Lancement des tests (dans Docker)
-              run: docker compose exec -T -e DATABASE_URL='mysql://testuser:testpass@db:3306/testdb?serverVersion=mariadb-11.4.8' app php bin/phpunit --testdox
+      - name: Lancement des tests (dans Docker)
+        run: docker compose exec -T -e DATABASE_URL='mysql://testuser:testpass@db:3306/testdb_test?serverVersion=mariadb-11.4.8' app php bin/phpunit --testdox
 
-            - name: Arrêt des conteneurs de test
-              # s'exécute toujours, même si les tests échouent
-              if: always()
-              run: docker compose down
+      - name: Arrêt des conteneurs de test
+        # s'exécute toujours, même si les tests échouent
+        if: always()
+        run: docker compose down
 
-    deploy:
-        needs: test
-        runs-on: ubuntu-latest
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
 
-        steps:
-            # --- 1. CONFIGURATION ET RÉCUPÉRATION DE L'IP ---
-            - name: Récupération du code
-              uses: actions/checkout@v4
+    steps:
+      # --- 1. CONFIGURATION ET RÉCUPÉRATION DE L'IP ---
+      - name: Récupération du code
+        uses: actions/checkout@v4
 
-            - name: Récupérer l'IP publique via l'API cPanel (Source de vérité)
-              id: get_ip
-              run: |
-                  IP=$(curl -s -H 'Authorization: cpanel ${{ secrets.CPANEL_USERNAME }}:${{ secrets.CPANEL_API_TOKEN }}' \
-                  'https://${{ secrets.CPANEL_SERVER }}:2083/execute/SshWhitelist/list' | jq -r .data.ip)
-                  echo "IP_ADDRESS=$IP" >> $GITHUB_OUTPUT
+      - name: Récupérer l'IP publique via l'API cPanel (Source de vérité)
+        id: get_ip
+        run: |
+          IP=$(curl -s -H 'Authorization: cpanel ${{ secrets.CPANEL_USERNAME }}:${{ secrets.CPANEL_API_TOKEN }}' \
+          'https://${{ secrets.CPANEL_SERVER }}:2083/execute/SshWhitelist/list' | jq -r .data.ip)
+          echo "IP_ADDRESS=$IP" >> $GITHUB_OUTPUT
 
-            - name: Autoriser l'IP du runner dans le pare-feu SSH
-              run: |
-                  curl -s -H 'Authorization: cpanel ${{ secrets.CPANEL_USERNAME }}:${{ secrets.CPANEL_API_TOKEN }}' \
-                  'https://${{ secrets.CPANEL_SERVER }}:2083/execute/SshWhitelist/add?address=${{ steps.get_ip.outputs.IP_ADDRESS }}&port=22&direction=in'
+      - name: Autoriser l'IP du runner dans le pare-feu SSH
+        run: |
+          curl -s -H 'Authorization: cpanel ${{ secrets.CPANEL_USERNAME }}:${{ secrets.CPANEL_API_TOKEN }}' \
+          'https://${{ secrets.CPANEL_SERVER }}:2083/execute/SshWhitelist/add?address=${{ steps.get_ip.outputs.IP_ADDRESS }}&port=22&direction=in'
 
-            # --- 2. PRÉPARATION DE L'APPLICATION SYMFONY ---
-            - name: Configuration de PHP
-              uses: shivammathur/setup-php@v2
-              with:
-                  php-version: "8.3"
-                  extensions: pdo, pdo_mysql
-                  tools: composer
+      # --- 2. PRÉPARATION DE L'APPLICATION SYMFONY ---
+      - name: Configuration de PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: pdo, pdo_mysql
+          tools: composer
 
-            - name: Création du fichier .env.local pour la production
-              run: |
-                  echo "DATABASE_URL='${{ secrets.DATABASE_URL }}'" > .env.local
-                  echo "APP_SECRET='${{ secrets.APP_SECRET }}'" >> .env.local
-                  echo "APP_ENV=prod" >> .env.local
-                  echo "JWT_PASSPHRASE='${{ secrets.JWT_PASSPHRASE }}'" >> .env.local
-                  # Configure API Key
-                  echo "GOOGLE_BOOKS_API_KEY=${{ secrets.GOOGLE_BOOKS_API_KEY }}" >> .env.local
+      - name: Création du fichier .env.local pour la production
+        run: |
+          echo "DATABASE_URL='${{ secrets.DATABASE_URL }}'" > .env.local
+          echo "APP_SECRET='${{ secrets.APP_SECRET }}'" >> .env.local
+          echo "APP_ENV=prod" >> .env.local
+          echo "JWT_PASSPHRASE='${{ secrets.JWT_PASSPHRASE }}'" >> .env.local
+          # Configure API Key
+          echo "GOOGLE_BOOKS_API_KEY=${{ secrets.GOOGLE_BOOKS_API_KEY }}" >> .env.local
 
-                  # Création des clés JWT
-                  mkdir -p config/jwt
-                  echo "${{ secrets.JWT_PRIVATE_KEY }}" > config/jwt/private.pem
-                  echo "${{ secrets.JWT_PUBLIC_KEY }}" > config/jwt/public.pem
+          # Création des clés JWT
+          mkdir -p config/jwt
+          echo "${{ secrets.JWT_PRIVATE_KEY }}" > config/jwt/private.pem
+          echo "${{ secrets.JWT_PUBLIC_KEY }}" > config/jwt/public.pem
 
-            - name: Installation des dépendances Composer
-              run: composer install --no-dev --optimize-autoloader --no-interaction
+      - name: Installation des dépendances Composer
+        run: composer install --no-dev --optimize-autoloader --no-interaction
 
-            # --- 3. DÉPLOIEMENT ET FINALISATION SUR LE SERVEUR ---
-            - name: Déployer les fichiers de l'application sur le serveur
-              uses: appleboy/scp-action@master
-              with:
-                  host: ${{ secrets.CPANEL_SERVER }}
-                  username: ${{ secrets.CPANEL_USERNAME }}
-                  key: ${{ secrets.SSH_PRIVATE_KEY }}
-                  source: "."
-                  target: ${{ secrets.TARGET_DIR }}
-                  rm: true
+      # --- 3. DÉPLOIEMENT ET FINALISATION SUR LE SERVEUR ---
+      - name: Déployer les fichiers de l'application sur le serveur
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.CPANEL_SERVER }}
+          username: ${{ secrets.CPANEL_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "."
+          target: ${{ secrets.TARGET_DIR }}
+          rm: true
 
-            - name: Exécuter le script de post-déploiement sur le serveur
-              uses: appleboy/ssh-action@master
-              with:
-                  host: ${{ secrets.CPANEL_SERVER }}
-                  username: ${{ secrets.CPANEL_USERNAME }}
-                  key: ${{ secrets.SSH_PRIVATE_KEY }}
-                  script: |
-                      cd ${{ secrets.TARGET_DIR }}
-                      chmod +x deploy.sh
-                      ./deploy.sh
+      - name: Exécuter le script de post-déploiement sur le serveur
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.CPANEL_SERVER }}
+          username: ${{ secrets.CPANEL_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd ${{ secrets.TARGET_DIR }}
+            chmod +x deploy.sh
+            ./deploy.sh
 
-            # --- 4. NETTOYAGE SÉCURISÉ DE L'IP ---
-            - name: Retirer l'IP du runner du pare-feu
-              if: always() && steps.get_ip.outcome == 'success'
-              run: |
-                  # On supprime la règle entrante
-                  curl -s -H 'Authorization: cpanel ${{ secrets.CPANEL_USERNAME }}:${{ secrets.CPANEL_API_TOKEN }}' \
-                  'https://${{ secrets.CPANEL_SERVER }}:2083/execute/SshWhitelist/remove?address=${{ steps.get_ip.outputs.IP_ADDRESS }}&port=22&direction=in'
-                  # On supprime la règle sortante
-                  curl -s -H 'Authorization: cpanel ${{ secrets.CPANEL_USERNAME }}:${{ secrets.CPANEL_API_TOKEN }}' \
-                  'https://${{ secrets.CPANEL_SERVER }}:2083/execute/SshWhitelist/remove?address=${{ steps.get_ip.outputs.IP_ADDRESS }}&port=22&direction=out'
+      # --- 4. NETTOYAGE SÉCURISÉ DE L'IP ---
+      - name: Retirer l'IP du runner du pare-feu
+        if: always() && steps.get_ip.outcome == 'success'
+        run: |
+          # On supprime la règle entrante
+          curl -s -H 'Authorization: cpanel ${{ secrets.CPANEL_USERNAME }}:${{ secrets.CPANEL_API_TOKEN }}' \
+          'https://${{ secrets.CPANEL_SERVER }}:2083/execute/SshWhitelist/remove?address=${{ steps.get_ip.outputs.IP_ADDRESS }}&port=22&direction=in'
+          # On supprime la règle sortante
+          curl -s -H 'Authorization: cpanel ${{ secrets.CPANEL_USERNAME }}:${{ secrets.CPANEL_API_TOKEN }}' \
+          'https://${{ secrets.CPANEL_SERVER }}:2083/execute/SshWhitelist/remove?address=${{ steps.get_ip.outputs.IP_ADDRESS }}&port=22&direction=out'
