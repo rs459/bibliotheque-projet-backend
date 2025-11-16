@@ -72,14 +72,6 @@ class UserControllerTest extends WebTestCase
         $data = json_decode($client->getResponse()->getContent(), true);
         $this->assertArrayHasKey('message', $data);
         $this->assertTrue($data['user']['isBlocked']);
-
-        // Cleanup - récupérer l'entité fraîche depuis la BDD
-        $userRepository = $em->getRepository(User::class);
-        $userFromDb = $userRepository->find($userId);
-        if ($userFromDb) {
-            $em->remove($userFromDb);
-            $em->flush();
-        }
     }
 
     public function testUnblockUserAsAdmin(): void
@@ -106,14 +98,6 @@ class UserControllerTest extends WebTestCase
 
         $data = json_decode($client->getResponse()->getContent(), true);
         $this->assertFalse($data['user']['isBlocked']);
-
-        // Cleanup - récupérer l'entité fraîche depuis la BDD
-        $userRepository = $em->getRepository(User::class);
-        $userFromDb = $userRepository->find($userId);
-        if ($userFromDb) {
-            $em->remove($userFromDb);
-            $em->flush();
-        }
     }
 
     public function testCannotBlockAdminUser(): void
@@ -136,14 +120,6 @@ class UserControllerTest extends WebTestCase
         $client->request('PATCH', "/api/users/{$userId}/block");
 
         $this->assertResponseStatusCodeSame(Response::HTTP_FORBIDDEN);
-
-        // Cleanup - récupérer l'entité fraîche depuis la BDD
-        $userRepository = $em->getRepository(User::class);
-        $userFromDb = $userRepository->find($userId);
-        if ($userFromDb) {
-            $em->remove($userFromDb);
-            $em->flush();
-        }
     }
 
     public function testNonAdminCannotBlockUser(): void
