@@ -1,154 +1,154 @@
 name: Déploiement de l'API Symfony sur O2Switch (branche deploy)
 
 on:
-    push:
-        branches: [deploy]
+  push:
+    branches: [deploy]
 
 jobs:
-    test:
-        runs-on: ubuntu-latest
+  test:
+    runs-on: ubuntu-latest
 
-        steps:
-            - name: Récupération du code
-              uses: actions/checkout@v4
+    steps:
+      - name: Récupération du code
+        uses: actions/checkout@v4
 
-            # AMÉLIORÉ : Étape pour mettre en cache les couches de l'image Docker
-            - name: Set up Docker Buildx
-              uses: docker/setup-buildx-action@v3
+      # AMÉLIORÉ : Étape pour mettre en cache les couches de l'image Docker
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-            - name: Cache Docker layers
-              uses: actions/cache@v4
-              with:
-                  path: /tmp/.buildx-cache
-                  key: ${{ runner.os }}-buildx-${{ github.sha }}
-                  restore-keys: |
-                      ${{ runner.os }}-buildx-
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
 
-            # AMÉLIORÉ : On build l'image ici en utilisant le cache
-            - name: Build the Docker image
-              uses: docker/build-push-action@v5
-              with:
-                  context: .
-                  load: true # Charge l'image dans le runner pour docker compose, ne la pousse pas
-                  tags: my-symfony-app:latest
-                  cache-from: type=local,src=/tmp/.buildx-cache
-                  cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+      # AMÉLIORÉ : On build l'image ici en utilisant le cache
+      - name: Build the Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          load: true # Charge l'image dans le runner pour docker compose, ne la pousse pas
+          tags: my-symfony-app:latest
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
 
-            # This ugly bit is necessary if you don't want to push the cache to a registry
-            - name: Move cache
-              run: |
-                  rm -rf /tmp/.buildx-cache
-                  mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+      # This ugly bit is necessary if you don't want to push the cache to a registry
+      - name: Move cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
-            - name: Lancement des conteneurs de test
-              run: MYSQL_ROOT_PASSWORD=rootpass docker compose up -d
+      - name: Lancement des conteneurs de test
+        run: MYSQL_ROOT_PASSWORD=rootpass docker compose up -d
 
-            # SUPPRIMÉ : Le 'composer install' est maintenant dans le Dockerfile
-            # - name: Installation des dépendances (dans Docker) ...
+      # SUPPRIMÉ : Le 'composer install' est maintenant dans le Dockerfile
+      # - name: Installation des dépendances (dans Docker) ...
 
-            - name: Préparation de la base de données de test (dans Docker)
-              env:
-                  MYSQL_ROOT_PASSWORD: rootpass
-              run: |
-                  echo "En attente de la base de données..."
-                  # On attend que le serveur 'db' soit joignable par l'utilisateur 'root'
-                  until docker compose exec -T db mariadb -h db -u root -p"$MYSQL_ROOT_PASSWORD" -e "SELECT 1" > /dev/null; do
-                      sleep 5
-                  done
-                  echo "Base de données prête."
+      - name: Préparation de la base de données de test (dans Docker)
+        env:
+          MYSQL_ROOT_PASSWORD: rootpass
+        run: |
+          echo "En attente de la base de données..."
+          # On attend que le serveur 'db' soit joignable par l'utilisateur 'root'
+          until docker compose exec -T db mariadb -h db -u root -p"$MYSQL_ROOT_PASSWORD" -e "SELECT 1" > /dev/null; do
+              sleep 5
+          done
+          echo "Base de données prête."
 
-                  # Étape 1 : 'root' crée la base de données. On fournit le nom de base 'testdb'.
-                  # Symfony créera 'testdb_test' car --env=test.
-                  docker compose exec -T -e DATABASE_URL='mysql://root:rootpass@db:3306/testdb?serverVersion=mariadb-11.4.8' app php bin/console doctrine:database:create --if-not-exists --env=test
+          # Étape 1 : 'root' crée la base de données. On fournit le nom de base 'testdb'.
+          # Symfony créera 'testdb_test' car --env=test.
+          docker compose exec -T -e DATABASE_URL='mysql://root:rootpass@db:3306/testdb?serverVersion=mariadb-11.4.8' app php bin/console doctrine:database:create --if-not-exists --env=test
 
-                  # Étape 2 : 'root' exécute les migrations. On fournit le même nom de base 'testdb'.
-                  # Symfony migrera dans 'testdb_test' car --env=test.
-                  docker compose exec -T -e DATABASE_URL='mysql://root:rootpass@db:3306/testdb?serverVersion=mariadb-11.4.8' app php bin/console doctrine:migrations:migrate -n --env=test
+          # Étape 2 : 'root' exécute les migrations. On fournit le même nom de base 'testdb'.
+          # Symfony migrera dans 'testdb_test' car --env=test.
+          docker compose exec -T -e DATABASE_URL='mysql://root:rootpass@db:3306/testdb?serverVersion=mariadb-11.4.8' app php bin/console doctrine:migrations:migrate -n --env=test
 
-            - name: Lancement des tests (dans Docker)
-              # On ajoute la DATABASE_URL ici car elle n'est plus passée par la commande exec
-              run: docker compose exec -T -e DATABASE_URL='mysql://testuser:testpass@db:3306/testdb_test?serverVersion=mariadb-11.4.8' app php bin/phpunit --testdox
+      - name: Lancement des tests (dans Docker)
+        # On ajoute la DATABASE_URL ici car elle n'est plus passée par la commande exec
+        run: docker compose exec -T -e DATABASE_URL='mysql://testuser:testpass@db:3306/testdb_test?serverVersion=mariadb-11.4.8' app php bin/phpunit --testdox
 
-            - name: Arrêt des conteneurs de test
-              if: always()
-              run: docker compose down
+      - name: Arrêt des conteneurs de test
+        if: always()
+        run: docker compose down
 
-    deploy:
-        needs: test
-        runs-on: ubuntu-latest
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
 
-        steps:
-            - name: Récupération du code
-              uses: actions/checkout@v4
+    steps:
+      - name: Récupération du code
+        uses: actions/checkout@v4
 
-            - name: Récupérer l'IP publique via l'API cPanel
-              id: get_ip
-              run: |
-                  IP=$(curl -s -H 'Authorization: cpanel ${{ secrets.CPANEL_USERNAME }}:${{ secrets.CPANEL_API_TOKEN }}' \
-                  'https://${{ secrets.CPANEL_SERVER }}:2083/execute/SshWhitelist/list' | jq -r .data.ip)
-                  echo "IP_ADDRESS=$IP" >> $GITHUB_OUTPUT
+      - name: Récupérer l'IP publique via l'API cPanel
+        id: get_ip
+        run: |
+          IP=$(curl -s -H 'Authorization: cpanel ${{ secrets.CPANEL_USERNAME }}:${{ secrets.CPANEL_API_TOKEN }}' \
+          'https://${{ secrets.CPANEL_SERVER }}:2083/execute/SshWhitelist/list' | jq -r .data.ip)
+          echo "IP_ADDRESS=$IP" >> $GITHUB_OUTPUT
 
-            - name: Autoriser l'IP du runner dans le pare-feu SSH
-              run: |
-                  curl -s -H 'Authorization: cpanel ${{ secrets.CPANEL_USERNAME }}:${{ secrets.CPANEL_API_TOKEN }}' \
-                  'https://${{ secrets.CPANEL_SERVER }}:2083/execute/SshWhitelist/add?address=${{ steps.get_ip.outputs.IP_ADDRESS }}&port=22&direction=in'
+      - name: Autoriser l'IP du runner dans le pare-feu SSH
+        run: |
+          curl -s -H 'Authorization: cpanel ${{ secrets.CPANEL_USERNAME }}:${{ secrets.CPANEL_API_TOKEN }}' \
+          'https://${{ secrets.CPANEL_SERVER }}:2083/execute/SshWhitelist/add?address=${{ steps.get_ip.outputs.IP_ADDRESS }}&port=22&direction=in'
 
-            - name: Configuration de PHP
-              uses: shivammathur/setup-php@v2
-              with:
-                  php-version: "8.3"
-                  extensions: pdo, pdo_mysql
-                  tools: composer
+      - name: Configuration de PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: pdo, pdo_mysql
+          tools: composer
 
-            - name: Cache des dépendances Composer
-              uses: actions/cache@v4
-              with:
-                  path: ~/.composer/cache/files
-                  key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
-                  restore-keys: |
-                      ${{ runner.os }}-composer-
+      - name: Cache des dépendances Composer
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache/files
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
 
-            - name: Création du fichier .env.local pour la production
-              run: |
-                  echo "DATABASE_URL='${{ secrets.DATABASE_URL }}'" > .env.local
-                  echo "APP_SECRET='${{ secrets.APP_SECRET }}'" >> .env.local
-                  echo "APP_ENV=prod" >> .env.local
-                  echo "JWT_PASSPHRASE='${{ secrets.JWT_PASSPHRASE }}'" >> .env.local
-                  # Configure API Key
-                  echo "GOOGLE_BOOKS_API_KEY=${{ secrets.GOOGLE_BOOKS_API_KEY }}" >> .env.local
+      - name: Création du fichier .env.local pour la production
+        run: |
+          echo "DATABASE_URL='${{ secrets.DATABASE_URL }}'" > .env.local
+          echo "APP_SECRET='${{ secrets.APP_SECRET }}'" >> .env.local
+          echo "APP_ENV=prod" >> .env.local
+          echo "JWT_PASSPHRASE='${{ secrets.JWT_PASSPHRASE }}'" >> .env.local
+          # Configure API Key
+          echo "GOOGLE_BOOKS_API_KEY=${{ secrets.GOOGLE_BOOKS_API_KEY }}" >> .env.local
 
-                  mkdir -p config/jwt
-                  echo "${{ secrets.JWT_PRIVATE_KEY }}" > config/jwt/private.pem
-                  echo "${{ secrets.JWT_PUBLIC_KEY }}" > config/jwt/public.pem
+          mkdir -p config/jwt
+          echo "${{ secrets.JWT_PRIVATE_KEY }}" > config/jwt/private.pem
+          echo "${{ secrets.JWT_PUBLIC_KEY }}" > config/jwt/public.pem
 
-            - name: Installation des dépendances Composer
-              run: composer install --no-dev --optimize-autoloader --no-interaction
+      - name: Installation des dépendances Composer
+        run: composer install --no-dev --optimize-autoloader --no-interaction
 
-            - name: Déployer les fichiers via SCP
-              uses: appleboy/scp-action@v1
-              with:
-                  host: ${{ secrets.CPANEL_SERVER }}
-                  username: ${{ secrets.CPANEL_USERNAME }}
-                  key: ${{ secrets.SSH_PRIVATE_KEY }}
-                  source: "."
-                  target: ${{ secrets.TARGET_DIR }}
-                  rm: true
+      - name: Déployer les fichiers via SCP
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.CPANEL_SERVER }}
+          username: ${{ secrets.CPANEL_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "."
+          target: ${{ secrets.TARGET_DIR }}
+          rm: true
 
-            - name: Exécuter le script de post-déploiement sur le serveur
-              uses: appleboy/ssh-action@v1
-              with:
-                  host: ${{ secrets.CPANEL_SERVER }}
-                  username: ${{ secrets.CPANEL_USERNAME }}
-                  key: ${{ secrets.SSH_PRIVATE_KEY }}
-                  script: |
-                      cd ${{ secrets.TARGET_DIR }}
-                      chmod +x deploy.sh
-                      ./deploy.sh
+      - name: Exécuter le script de post-déploiement sur le serveur
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.CPANEL_SERVER }}
+          username: ${{ secrets.CPANEL_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd ${{ secrets.TARGET_DIR }}
+            chmod +x deploy.sh
+            ./deploy.sh
 
-            - name: Retirer l'IP du runner du pare-feu
-              if: always() && steps.get_ip.outcome == 'success'
-              run: |
-                  curl -s -H 'Authorization: cpanel ${{ secrets.CPANEL_USERNAME }}:${{ secrets.CPANEL_API_TOKEN }}' \
-                  'https://${{ secrets.CPANEL_SERVER }}:2083/execute/SshWhitelist/remove?address=${{ steps.get_ip.outputs.IP_ADDRESS }}&port=22&direction=in'
-                  curl -s -H 'Authorization: cpanel ${{ secrets.CPANEL_USERNAME }}:${{ secrets.CPANEL_API_TOKEN }}' \
-                  'https://${{ secrets.CPANEL_SERVER }}:2083/execute/SshWhitelist/remove?address=${{ steps.get_ip.outputs.IP_ADDRESS }}&port=22&direction=out'
+      - name: Retirer l'IP du runner du pare-feu
+        if: always() && steps.get_ip.outcome == 'success'
+        run: |
+          curl -s -H 'Authorization: cpanel ${{ secrets.CPANEL_USERNAME }}:${{ secrets.CPANEL_API_TOKEN }}' \
+          'https://${{ secrets.CPANEL_SERVER }}:2083/execute/SshWhitelist/remove?address=${{ steps.get_ip.outputs.IP_ADDRESS }}&port=22&direction=in'
+          curl -s -H 'Authorization: cpanel ${{ secrets.CPANEL_USERNAME }}:${{ secrets.CPANEL_API_TOKEN }}' \
+          'https://${{ secrets.CPANEL_SERVER }}:2083/execute/SshWhitelist/remove?address=${{ steps.get_ip.outputs.IP_ADDRESS }}&port=22&direction=out'
