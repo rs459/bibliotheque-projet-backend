@@ -23,6 +23,8 @@ jobs:
         run: |
           # Laisse le temps à la BDD de démarrer complètement
           sleep 10
+          # Copier les clés JWT dans le conteneur
+          docker compose cp config/jwt app:/app/config/jwt
           # On crée directement testdb_test
           # TEST_TOKEN='' pour éviter que Doctrine ajoute un suffixe supplémentaire via dbname_suffix
           docker compose exec -T -e TEST_TOKEN='' -e DATABASE_URL='mysql://root:rootpass@db:3306/testdb?serverVersion=mariadb-11.4.8' app php bin/console doctrine:database:create --if-not-exists --env=test

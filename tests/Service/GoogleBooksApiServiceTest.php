@@ -46,8 +46,8 @@ class GoogleBooksApiServiceTest extends TestCase
         $this->assertIsArray($results);
         $this->assertCount(1, $results);
         $this->assertInstanceOf(\App\DTO\GoogleBookDto::class, $results[0]);
-        $this->assertSame('Test Book', $results[0]->title);
-        $this->assertSame(['Test Author'], $results[0]->authors);
+        $this->assertSame('Test Book', $results[0]->getTitle());
+        $this->assertSame(['Test Author'], $results[0]->getAuthors());
     }
 
     public function testSearchBooksWithEmptyQuery(): void
