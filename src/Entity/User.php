@@ -68,7 +68,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     /**
      * @var Collection<int, Book>
      */
-    #[ORM\OneToMany(mappedBy: 'user', targetEntity: Book::class, cascade: ['persist', 'remove'])]
+    #[ORM\OneToMany(mappedBy: 'user', targetEntity: Book::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $books;
 
     public function __construct()
@@ -150,7 +150,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $data = (array) $this;
         $data["\0".self::class."\0password"] = hash('crc32c', $this->password);
 
-        return $this;
+        return $data;
     }
 
     public function eraseCredentials(): void
