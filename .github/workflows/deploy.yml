@@ -30,7 +30,12 @@ jobs:
           # docker compose exec -T app php bin/console doctrine:fixtures:load -n
 
       - name: Lancement des tests (dans Docker)
-        run: docker compose exec -T -e DATABASE_URL='mysql://testuser:testpass@db:3306/testdb_test?serverVersion=mariadb-11.4.8' app php bin/phpunit --testdox
+        run: |
+          # Vérification de la variable DATABASE_URL
+          echo "Vérification de DATABASE_URL dans le conteneur:"
+          docker compose exec -T -e DATABASE_URL='mysql://testuser:testpass@db:3306/testdb_test?serverVersion=mariadb-11.4.8' app sh -c 'echo "DATABASE_URL=$DATABASE_URL"'
+          # Lancement des tests
+          docker compose exec -T -e DATABASE_URL='mysql://testuser:testpass@db:3306/testdb_test?serverVersion=mariadb-11.4.8' app php bin/phpunit --testdox
 
       - name: Arrêt des conteneurs de test
         # s'exécute toujours, même si les tests échouent
