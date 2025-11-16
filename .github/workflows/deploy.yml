@@ -34,11 +34,6 @@ jobs:
 
       - name: Lancement des tests (dans Docker)
         run: |
-          # Vérification de la variable DATABASE_URL
-          echo "Vérification de DATABASE_URL dans le conteneur:"
-          docker compose exec -T -e TEST_TOKEN='' -e DATABASE_URL='mysql://testuser:testpass@db:3306/testdb?serverVersion=mariadb-11.4.8' app sh -c 'echo "DATABASE_URL=$DATABASE_URL"'
-          docker compose exec -T -e TEST_TOKEN='' -e DATABASE_URL='mysql://testuser:testpass@db:3306/testdb?serverVersion=mariadb-11.4.8' app sh -c 'echo "TEST_TOKEN=$TEST_TOKEN"'
-          # Lancement des tests
           # TEST_TOKEN='' désactive le suffixe dbname_suffix dans doctrine.yaml
           # Donc DATABASE_URL=testdb + dbname_suffix='_test' = testdb_test (et non testdb_test_test)
           docker compose exec -T -e TEST_TOKEN='' -e DATABASE_URL='mysql://testuser:testpass@db:3306/testdb?serverVersion=mariadb-11.4.8' app php bin/phpunit --testdox
