@@ -23,9 +23,10 @@ jobs:
         run: |
           # Laisse le temps à la BDD de démarrer complètement
           sleep 10
-          # On crée directement testdb_test (car --env=test ajoute le suffixe _test)
-          docker compose exec -T -e DATABASE_URL='mysql://root:rootpass@db:3306/testdb_test?serverVersion=mariadb-11.4.8' app php bin/console doctrine:database:create --if-not-exists
-          docker compose exec -T -e DATABASE_URL='mysql://root:rootpass@db:3306/testdb_test?serverVersion=mariadb-11.4.8' app php bin/console doctrine:migrations:migrate -n
+          # On crée directement testdb_test
+          # TEST_TOKEN='' pour éviter que Doctrine ajoute un suffixe supplémentaire via dbname_suffix
+          docker compose exec -T -e TEST_TOKEN='' -e DATABASE_URL='mysql://root:rootpass@db:3306/testdb?serverVersion=mariadb-11.4.8' app php bin/console doctrine:database:create --if-not-exists --env=test
+          docker compose exec -T -e TEST_TOKEN='' -e DATABASE_URL='mysql://root:rootpass@db:3306/testdb?serverVersion=mariadb-11.4.8' app php bin/console doctrine:migrations:migrate -n --env=test
           # Optionnel : chargez vos fixtures de test ici
           # docker compose exec -T app php bin/console doctrine:fixtures:load -n
 
@@ -33,9 +34,12 @@ jobs:
         run: |
           # Vérification de la variable DATABASE_URL
           echo "Vérification de DATABASE_URL dans le conteneur:"
-          docker compose exec -T -e DATABASE_URL='mysql://testuser:testpass@db:3306/testdb_test?serverVersion=mariadb-11.4.8' app sh -c 'echo "DATABASE_URL=$DATABASE_URL"'
+          docker compose exec -T -e TEST_TOKEN='' -e DATABASE_URL='mysql://testuser:testpass@db:3306/testdb?serverVersion=mariadb-11.4.8' app sh -c 'echo "DATABASE_URL=$DATABASE_URL"'
+          docker compose exec -T -e TEST_TOKEN='' -e DATABASE_URL='mysql://testuser:testpass@db:3306/testdb?serverVersion=mariadb-11.4.8' app sh -c 'echo "TEST_TOKEN=$TEST_TOKEN"'
           # Lancement des tests
-          docker compose exec -T -e DATABASE_URL='mysql://testuser:testpass@db:3306/testdb_test?serverVersion=mariadb-11.4.8' app php bin/phpunit --testdox
+          # TEST_TOKEN='' désactive le suffixe dbname_suffix dans doctrine.yaml
+          # Donc DATABASE_URL=testdb + dbname_suffix='_test' = testdb_test (et non testdb_test_test)
+          docker compose exec -T -e TEST_TOKEN='' -e DATABASE_URL='mysql://testuser:testpass@db:3306/testdb?serverVersion=mariadb-11.4.8' app php bin/phpunit --testdox
 
       - name: Arrêt des conteneurs de test
         # s'exécute toujours, même si les tests échouent
