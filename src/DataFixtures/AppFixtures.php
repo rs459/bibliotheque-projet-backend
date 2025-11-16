@@ -2,61 +2,35 @@
 
 namespace App\DataFixtures;
 
+use App\Entity\User;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Persistence\ObjectManager;
-use App\Entity\Author;
-use App\Entity\Book;
-use App\Entity\Editor;
-use Faker\Factory;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 class AppFixtures extends Fixture
 {
+    private UserPasswordHasherInterface $passwordHasher;
+
+    public function __construct(UserPasswordHasherInterface $passwordHasher)
+    {
+        $this->passwordHasher = $passwordHasher;
+    }
+
     public function load(ObjectManager $manager): void
     {
-        // On utilise Faker pour générer des données réalistes
-        $faker = Factory::create('fr_FR');
+        // Créer un utilisateur standard
+        $user = new User();
+        $user->setEmail('test@test.fr');
+        $user->setRoles(['ROLE_USER']);
+        $user->setPassword($this->passwordHasher->hashPassword($user, 'test82@T'));
+        $manager->persist($user);
 
-        // Création de 5 auteurs et de références pour les utiliser après
-        $authors = [];
-        for ($i = 0; $i < 5; $i++) {
-            $author = new Author();
-            $author->setFirstName($faker->firstName());
-            $author->setLastName($faker->lastName());
-            $author->setCountry($faker->country());
-            $manager->persist($author);
-            $authors[] = $author;
-        }
-
-        // Création de 5 éditeurs
-        $editors = [];
-        for ($i = 0; $i < 5; $i++) {
-            $editor = new Editor();
-            $editor->setName($faker->company());
-            $editor->setHeadquarter($faker->city());
-            $editor->setCreationDate($faker->dateTimeBetween('-50 years', 'now'));
-            $manager->persist($editor);
-            $editors[] = $editor;
-        }
-
-        $manager->flush();
-
-        // Création de 100 livres
-        for ($i = 0; $i < 100; $i++) {
-            $book = new Book();
-            $bookTitle = $faker->words(3, true);
-
-            $book->setTitle($bookTitle);
-            $book->setDescription($faker->paragraph(3));
-            $book->setPages($faker->numberBetween(50, 800));
-
-            $book->setImage('https://picsum.photos/75/100?random=' . ($i + 1));
-
-            // On sélectionne un auteur et un éditeur au hasard
-            $book->setAuthor($faker->randomElement($authors));
-            $book->setEditor($faker->randomElement($editors));
-
-            $manager->persist($book);
-        }
+        // Créer un administrateur
+        $admin = new User();
+        $admin->setEmail('test@test.com');
+        $admin->setRoles(['ROLE_ADMIN', 'ROLE_USER']);
+        $admin->setPassword($this->passwordHasher->hashPassword($admin, 'test82@T'));
+        $manager->persist($admin);
 
         $manager->flush();
     }

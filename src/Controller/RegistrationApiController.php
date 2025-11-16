@@ -27,16 +27,16 @@ final class RegistrationApiController extends AbstractController
         // 1. Valider les données brutes avant de créer l'utilisateur
         $constraints = new Assert\Collection([
             'email' => [
-                new Assert\NotBlank(['message' => 'L\'adresse e-mail ne peut pas être vide.']),
-                new Assert\Email(['message' => 'L\'adresse e-mail "{{ value }}" n\'est pas une adresse e-mail valide.']),
+                new Assert\NotBlank(message: 'L\'adresse e-mail ne peut pas être vide.'),
+                new Assert\Email(message: 'L\'adresse e-mail "{{ value }}" n\'est pas une adresse e-mail valide.'),
             ],
             'password' => [
-                new Assert\NotBlank(['message' => 'Le mot de passe ne peut pas être vide.']),
-                new Assert\Length(['min' => 6, 'minMessage' => 'Le mot de passe doit contenir au moins {{ limit }} caractères.']),
-                new Assert\Regex(['pattern' => '/[A-Z]/', 'message' => 'Le mot de passe doit contenir au moins une lettre majuscule.']),
-                new Assert\Regex(['pattern' => '/[a-z]/', 'message' => 'Le mot de passe doit contenir au moins une lettre minuscule.']),
-                new Assert\Regex(['pattern' => '/\d/', 'message' => 'Le mot de passe doit contenir au moins un chiffre.']),
-                new Assert\Regex(['pattern' => '/[^a-zA-Z0-9]/', 'message' => 'Le mot de passe doit contenir au moins un caractère spécial.']),
+                new Assert\NotBlank(message: 'Le mot de passe ne peut pas être vide.'),
+                new Assert\Length(min: 6, minMessage: 'Le mot de passe doit contenir au moins {{ limit }} caractères.'),
+                new Assert\Regex(pattern: '/[A-Z]/', message: 'Le mot de passe doit contenir au moins une lettre majuscule.'),
+                new Assert\Regex(pattern: '/[a-z]/', message: 'Le mot de passe doit contenir au moins une lettre minuscule.'),
+                new Assert\Regex(pattern: '/\d/', message: 'Le mot de passe doit contenir au moins un chiffre.'),
+                new Assert\Regex(pattern: '/[^a-zA-Z0-9]/', message: 'Le mot de passe doit contenir au moins un caractère spécial.'),
             ],
         ]);
 
@@ -78,6 +78,7 @@ final class RegistrationApiController extends AbstractController
                 'id' => $user->getId(),
                 'email' => $user->getEmail(),
                 'roles' => $user->getRoles(),
+                'isBlocked' => $user->isBlocked(),
             ];
         }
 

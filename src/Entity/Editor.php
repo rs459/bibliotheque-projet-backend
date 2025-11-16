@@ -12,17 +12,15 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\Put;
-use ApiPlatform\Metadata\Delete;
 use Symfony\Component\Serializer\Annotation\Groups;
 
 #[ORM\Entity(repositoryClass: EditorRepository::class)]
 #[ApiResource(
     operations: [
-        new Get(),
+        new Get(normalizationContext: ['groups' => ['editor:read', 'editor:books']]),
         new GetCollection(),
         new Post(),
-        new Put(),
-        new Delete()
+        new Put()
     ]
 )]
 class Editor
@@ -37,18 +35,11 @@ class Editor
     #[Groups(['editor:read'])]
     private ?string $name = null;
 
-    #[ORM\Column(type: Types::DATE_MUTABLE)]
-    #[Groups(['editor:read'])]
-    private ?\DateTime $creationDate = null;
-
-    #[ORM\Column(length: 255)]
-    #[Groups(['editor:read'])]
-    private ?string $headquarter = null;
-
     /**
      * @var Collection<int, Book>
      */
     #[ORM\OneToMany(targetEntity: Book::class, mappedBy: 'editor', orphanRemoval: true)]
+    #[Groups(['editor:books'])]
     private Collection $books;
 
     public function __construct()
@@ -69,30 +60,6 @@ class Editor
     public function setName(string $name): static
     {
         $this->name = $name;
-
-        return $this;
-    }
-
-    public function getCreationDate(): ?\DateTime
-    {
-        return $this->creationDate;
-    }
-
-    public function setCreationDate(\DateTime $creationDate): static
-    {
-        $this->creationDate = $creationDate;
-
-        return $this;
-    }
-
-    public function getHeadquarter(): ?string
-    {
-        return $this->headquarter;
-    }
-
-    public function setHeadquarter(string $headquarter): static
-    {
-        $this->headquarter = $headquarter;
 
         return $this;
     }

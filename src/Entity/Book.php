@@ -28,32 +28,36 @@ class Book
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['book:read'])]
+    #[Groups(['book:read', 'author:books', 'editor:books'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
-    #[Groups(['book:read'])]
+    #[Groups(['book:read', 'author:books', 'editor:books'])]
     private ?string $title = null;
 
-    #[ORM\Column(length: 255)]
-    #[Groups(['book:read'])]
+    #[ORM\Column(type: Types::TEXT)]
+    #[Groups(['book:read', 'author:books', 'editor:books'])]
     private ?string $image = null;
 
     #[ORM\Column(type: Types::TEXT)]
-    #[Groups(['book:read'])]
+    #[Groups(['book:read', 'author:books', 'editor:books'])]
     private ?string $description = null;
 
     #[ORM\Column]
-    #[Groups(['book:read'])]
+    #[Groups(['book:read', 'author:books', 'editor:books'])]
     private ?int $pages = null;
 
-    #[ORM\ManyToOne(inversedBy: 'book')]
+    #[ORM\ManyToOne(inversedBy: 'books')]
     #[Groups(['book:read'])]
     private ?Author $author = null;
 
     #[ORM\ManyToOne(inversedBy: 'books')]
     #[Groups(['book:read'])]
     private ?Editor $editor = null;
+
+    #[ORM\ManyToOne(inversedBy: 'books')]
+    #[ORM\JoinColumn(nullable: false)]
+    private ?User $user = null;
 
     public function getId(): ?int
     {
@@ -128,6 +132,18 @@ class Book
     public function setEditor(?Editor $editor): static
     {
         $this->editor = $editor;
+
+        return $this;
+    }
+
+    public function getUser(): ?User
+    {
+        return $this->user;
+    }
+
+    public function setUser(?User $user): static
+    {
+        $this->user = $user;
 
         return $this;
     }
