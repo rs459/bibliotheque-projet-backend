@@ -114,6 +114,8 @@ jobs:
                   echo "APP_SECRET='${{ secrets.APP_SECRET }}'" >> .env.local
                   echo "APP_ENV=prod" >> .env.local
                   echo "JWT_PASSPHRASE='${{ secrets.JWT_PASSPHRASE }}'" >> .env.local
+                  # Configure API Key
+                  echo "GOOGLE_BOOKS_API_KEY=${{ secrets.GOOGLE_BOOKS_API_KEY }}" >> .env.local
 
                   mkdir -p config/jwt
                   echo "${{ secrets.JWT_PRIVATE_KEY }}" > config/jwt/private.pem

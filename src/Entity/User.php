@@ -59,12 +59,22 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     private ?string $password = null;
 
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    private bool $isBlocked = false;
+
     #[ORM\OneToMany(mappedBy: 'user', targetEntity: RefreshToken::class, cascade: ['persist', 'remove'])]
     private Collection $refreshTokens;
+
+    /**
+     * @var Collection<int, Book>
+     */
+    #[ORM\OneToMany(mappedBy: 'user', targetEntity: Book::class, cascade: ['persist', 'remove'])]
+    private Collection $books;
 
     public function __construct()
     {
         $this->refreshTokens = new ArrayCollection();
+        $this->books = new ArrayCollection();
     }
 
 
@@ -140,17 +150,58 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $data = (array) $this;
         $data["\0".self::class."\0password"] = hash('crc32c', $this->password);
 
-        return $data;
+        return $this;
     }
 
-    #[\Deprecated]
     public function eraseCredentials(): void
     {
-        // @deprecated, to be removed when upgrading to Symfony 8
+        // Nothing to do here
+    }
+
+    public function isBlocked(): bool
+    {
+        return $this->isBlocked;
+    }
+
+    public function setIsBlocked(bool $isBlocked): static
+    {
+        $this->isBlocked = $isBlocked;
+
+        return $this;
     }
 
     public function getRefreshTokens(): Collection
     {
         return $this->refreshTokens;
+    }
+
+    /**
+     * @return Collection<int, Book>
+     */
+    public function getBooks(): Collection
+    {
+        return $this->books;
+    }
+
+    public function addBook(Book $book): static
+    {
+        if (!$this->books->contains($book)) {
+            $this->books->add($book);
+            $book->setUser($this);
+        }
+
+        return $this;
+    }
+
+    public function removeBook(Book $book): static
+    {
+        if ($this->books->removeElement($book)) {
+            // set the owning side to null (unless already changed)
+            if ($book->getUser() === $this) {
+                $book->setUser(null);
+            }
+        }
+
+        return $this;
     }
 }

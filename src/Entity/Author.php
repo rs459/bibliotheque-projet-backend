@@ -11,17 +11,15 @@ use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\Put;
-use ApiPlatform\Metadata\Delete;
 use Symfony\Component\Serializer\Annotation\Groups;
 
 #[ORM\Entity(repositoryClass: AuthorRepository::class)]
 #[ApiResource(
     operations: [
-        new Get(),
+        new Get(normalizationContext: ['groups' => ['author:read', 'author:books']]),
         new GetCollection(),
         new Post(),
-        new Put(),
-        new Delete()
+        new Put()
     ]
 )]
 class Author
@@ -40,19 +38,16 @@ class Author
     #[Groups(['author:read'])]
     private ?string $lastName = null;
 
-    #[ORM\Column(length: 255)]
-    #[Groups(['author:read'])]
-    private ?string $country = null;
-
     /**
      * @var Collection<int, Book>
      */
     #[ORM\OneToMany(targetEntity: Book::class, mappedBy: 'author')]
-    private Collection $book;
+    #[Groups(['author:books'])]
+    private Collection $books;
 
     public function __construct()
     {
-        $this->book = new ArrayCollection();
+        $this->books = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -84,30 +79,18 @@ class Author
         return $this;
     }
 
-    public function getCountry(): ?string
-    {
-        return $this->country;
-    }
-
-    public function setCountry(string $country): static
-    {
-        $this->country = $country;
-
-        return $this;
-    }
-
     /**
      * @return Collection<int, Book>
      */
-    public function getBook(): Collection
+    public function getBooks(): Collection
     {
-        return $this->book;
+        return $this->books;
     }
 
     public function addBook(Book $book): static
     {
-        if (!$this->book->contains($book)) {
-            $this->book->add($book);
+        if (!$this->books->contains($book)) {
+            $this->books->add($book);
             $book->setAuthor($this);
         }
 
@@ -116,7 +99,7 @@ class Author
 
     public function removeBook(Book $book): static
     {
-        if ($this->book->removeElement($book)) {
+        if ($this->books->removeElement($book)) {
             // set the owning side to null (unless already changed)
             if ($book->getAuthor() === $this) {
                 $book->setAuthor(null);
