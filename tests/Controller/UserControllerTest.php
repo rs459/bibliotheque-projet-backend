@@ -74,6 +74,7 @@ class UserControllerTest extends WebTestCase
         $this->assertTrue($data['user']['isBlocked']);
 
         // Cleanup
+        $em->refresh($userToBlock);
         $em->remove($userToBlock);
         $em->flush();
     }
@@ -104,6 +105,7 @@ class UserControllerTest extends WebTestCase
         $this->assertFalse($data['user']['isBlocked']);
 
         // Cleanup
+        $em->refresh($blockedUser);
         $em->remove($blockedUser);
         $em->flush();
     }
@@ -130,6 +132,7 @@ class UserControllerTest extends WebTestCase
         $this->assertResponseStatusCodeSame(Response::HTTP_FORBIDDEN);
 
         // Cleanup
+        $em->refresh($adminUser);
         $em->remove($adminUser);
         $em->flush();
     }

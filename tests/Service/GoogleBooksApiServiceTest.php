@@ -72,7 +72,7 @@ class GoogleBooksApiServiceTest extends TestCase
             ->method('request')
             ->with(
                 'GET',
-                GoogleBooksApiService::class . '::GOOGLE_BOOKS_API_URL',
+                'https://www.googleapis.com/books/v1/volumes',
                 $this->callback(function ($options) {
                     return isset($options['query']['key']) && $options['query']['key'] === 'test-api-key';
                 })
