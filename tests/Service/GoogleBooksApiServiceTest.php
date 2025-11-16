@@ -45,8 +45,9 @@ class GoogleBooksApiServiceTest extends TestCase
 
         $this->assertIsArray($results);
         $this->assertCount(1, $results);
-        $this->assertSame('Test Book', $results[0]['title']);
-        $this->assertSame(['Test Author'], $results[0]['authors']);
+        $this->assertInstanceOf(\App\DTO\GoogleBookDto::class, $results[0]);
+        $this->assertSame('Test Book', $results[0]->title);
+        $this->assertSame(['Test Author'], $results[0]->authors);
     }
 
     public function testSearchBooksWithEmptyQuery(): void
@@ -71,13 +72,16 @@ class GoogleBooksApiServiceTest extends TestCase
             ->method('request')
             ->with(
                 'GET',
-                $this->stringContains('key=test-api-key')
+                GoogleBooksApiService::class . '::GOOGLE_BOOKS_API_URL',
+                $this->callback(function ($options) {
+                    return isset($options['query']['key']) && $options['query']['key'] === 'test-api-key';
+                })
             )
             ->willReturn($mockResponse);
 
         $mockLogger = $this->createMock(LoggerInterface::class);
 
-        $service = new GoogleBooksApiService($mockHttpClient, $mockLogger);
-        $service->searchBooks('test', 'test-api-key');
+        $service = new GoogleBooksApiService($mockHttpClient, $mockLogger, 'test-api-key');
+        $service->searchBooks('test', 10);
     }
 }
