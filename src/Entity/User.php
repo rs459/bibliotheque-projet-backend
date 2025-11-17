@@ -68,7 +68,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     /**
      * @var Collection<int, Book>
      */
-    #[ORM\OneToMany(mappedBy: 'user', targetEntity: Book::class, cascade: ['persist', 'remove'])]
+    #[ORM\ManyToMany(targetEntity: Book::class, inversedBy: 'users')]
+    #[ORM\JoinTable(name: 'user_book')]
     private Collection $books;
 
     public function __construct()
@@ -150,7 +151,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $data = (array) $this;
         $data["\0".self::class."\0password"] = hash('crc32c', $this->password);
 
-        return $this;
+        return $data;
     }
 
     public function eraseCredentials(): void
@@ -187,7 +188,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         if (!$this->books->contains($book)) {
             $this->books->add($book);
-            $book->setUser($this);
         }
 
         return $this;
@@ -195,12 +195,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function removeBook(Book $book): static
     {
-        if ($this->books->removeElement($book)) {
-            // set the owning side to null (unless already changed)
-            if ($book->getUser() === $this) {
-                $book->setUser(null);
-            }
-        }
+        $this->books->removeElement($book);
 
         return $this;
     }

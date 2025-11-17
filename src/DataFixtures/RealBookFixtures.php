@@ -421,8 +421,10 @@ class RealBookFixtures extends Fixture implements DependentFixtureInterface
                 ->setEditor($bookData['editor'])
                 ->setPages($bookData['pages'])
                 ->setDescription($bookData['description'])
-                ->setImage($bookData['image'])
-                ->setUser($user);
+                ->setImage($bookData['image']);
+
+            // Associer l'utilisateur au livre (relation ManyToMany)
+            $book->addUser($user);
 
             $manager->persist($book);
         }

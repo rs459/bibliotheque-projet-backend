@@ -91,7 +91,9 @@ class GoogleBooksController extends AbstractController
             $book->setImage($googleBook->getThumbnail());
             $book->setAuthor($author);
             $book->setEditor($editor);
-            $book->setUser($user);
+
+            // Associer l'utilisateur au livre (relation ManyToMany)
+            $book->addUser($user);
 
             $this->entityManager->persist($book);
             $this->entityManager->flush();

@@ -23,6 +23,7 @@ class AppFixtures extends Fixture
         $user->setEmail('test@test.fr');
         $user->setRoles(['ROLE_USER']);
         $user->setPassword($this->passwordHasher->hashPassword($user, 'test82@T'));
+        $user->setIsBlocked(false);
         $manager->persist($user);
 
         // Créer un administrateur
@@ -30,6 +31,7 @@ class AppFixtures extends Fixture
         $admin->setEmail('test@test.com');
         $admin->setRoles(['ROLE_ADMIN', 'ROLE_USER']);
         $admin->setPassword($this->passwordHasher->hashPassword($admin, 'test82@T'));
+        $admin->setIsBlocked(false);
         $manager->persist($admin);
 
         $manager->flush();
