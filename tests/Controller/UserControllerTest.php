@@ -72,6 +72,8 @@ class UserControllerTest extends WebTestCase
         $data = json_decode($client->getResponse()->getContent(), true);
         $this->assertArrayHasKey('message', $data);
         $this->assertTrue($data['user']['isBlocked']);
+
+        // Pas besoin de cleanup manuel - Doctrine le fait automatiquement en mode test
     }
 
     public function testUnblockUserAsAdmin(): void
@@ -98,6 +100,8 @@ class UserControllerTest extends WebTestCase
 
         $data = json_decode($client->getResponse()->getContent(), true);
         $this->assertFalse($data['user']['isBlocked']);
+
+        // Pas besoin de cleanup manuel - Doctrine le fait automatiquement en mode test
     }
 
     public function testCannotBlockAdminUser(): void
@@ -120,6 +124,8 @@ class UserControllerTest extends WebTestCase
         $client->request('PATCH', "/api/users/{$userId}/block");
 
         $this->assertResponseStatusCodeSame(Response::HTTP_FORBIDDEN);
+
+        // Pas besoin de cleanup manuel - Doctrine le fait automatiquement en mode test
     }
 
     public function testNonAdminCannotBlockUser(): void

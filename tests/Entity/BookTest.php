@@ -53,10 +53,11 @@ class BookTest extends TestCase
         $user = new User();
         $user->setEmail('reader@test.com');
 
-        $book->setUser($user);
+        $book->addUser($user);
 
-        $this->assertSame($user, $book->getUser());
-        $this->assertSame('reader@test.com', $book->getUser()->getEmail());
+        $this->assertTrue($book->getUsers()->contains($user));
+        $this->assertCount(1, $book->getUsers());
+        $this->assertSame('reader@test.com', $book->getUsers()->first()->getEmail());
     }
 
     public function testBookImage(): void
