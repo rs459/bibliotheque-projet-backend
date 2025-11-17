@@ -68,7 +68,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     /**
      * @var Collection<int, Book>
      */
-    #[ORM\OneToMany(mappedBy: 'user', targetEntity: Book::class)]
+    #[ORM\ManyToMany(targetEntity: Book::class, inversedBy: 'users')]
+    #[ORM\JoinTable(name: 'user_book')]
     private Collection $books;
 
     public function __construct()
@@ -187,7 +188,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         if (!$this->books->contains($book)) {
             $this->books->add($book);
-            $book->setUser($this);
         }
 
         return $this;
@@ -195,12 +195,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function removeBook(Book $book): static
     {
-        if ($this->books->removeElement($book)) {
-            // set the owning side to null (unless already changed)
-            if ($book->getUser() === $this) {
-                $book->setUser(null);
-            }
-        }
+        $this->books->removeElement($book);
 
         return $this;
     }

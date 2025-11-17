@@ -41,18 +41,21 @@ final class CurrentUserExtension implements QueryCollectionExtensionInterface, Q
         $rootAlias = $queryBuilder->getRootAliases()[0];
 
         if (Book::class === $resourceClass) {
-            // Filtrer les livres par utilisateur
-            $queryBuilder->andWhere(sprintf('%s.user = :current_user', $rootAlias));
+            // Filtrer les livres par utilisateur avec la relation ManyToMany
+            $queryBuilder->innerJoin(sprintf('%s.users', $rootAlias), 'book_user');
+            $queryBuilder->andWhere('book_user = :current_user');
             $queryBuilder->setParameter('current_user', $user);
         } elseif (Author::class === $resourceClass) {
             // Ne montrer que les auteurs qui ont au moins un livre de l'utilisateur
             $queryBuilder->innerJoin(sprintf('%s.books', $rootAlias), 'book');
-            $queryBuilder->andWhere('book.user = :current_user');
+            $queryBuilder->innerJoin('book.users', 'book_user');
+            $queryBuilder->andWhere('book_user = :current_user');
             $queryBuilder->setParameter('current_user', $user);
         } elseif (Editor::class === $resourceClass) {
             // Ne montrer que les éditeurs qui ont au moins un livre de l'utilisateur
             $queryBuilder->innerJoin(sprintf('%s.books', $rootAlias), 'book');
-            $queryBuilder->andWhere('book.user = :current_user');
+            $queryBuilder->innerJoin('book.users', 'book_user');
+            $queryBuilder->andWhere('book_user = :current_user');
             $queryBuilder->setParameter('current_user', $user);
         }
     }
